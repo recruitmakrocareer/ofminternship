@@ -1,18 +1,31 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { adminListCandidates, type Candidate } from '../lib/api';
-import { LOOKER_STUDIO_URL } from '../config';
-import { statusLabel } from '../components/StatusStepper';
+import { badgeStyle, statusLabel } from '../lib/status';
+import AdminSidebar from './AdminSidebar';
 
 const TOKEN_KEY = 'mkr_admin_token';
+const QUOTA = 30;
+const stOf = (c: Candidate) => c.application?.status || 'submitted';
+const AFTER_PRESCREEN = ['prescreened', 'shortlisted', 'interview', 'offer', 'accepted'];
+const AFTER_SHORTLIST = ['shortlisted', 'interview', 'offer', 'accepted'];
+const AFTER_INTERVIEW = ['interview', 'offer', 'accepted'];
 
-// Dashboard แอดมิน — embed Looker Studio + ตารางสรุปผู้สมัคร (token-protected)
+const FIELD_COLORS = ['#E2231A', '#FFC42E', '#3FC5F0', '#4FD08A', '#FF7A70'];
+
+function initial(name: string) {
+  return (name || '?').trim().charAt(0) || '?';
+}
+
 export default function Dashboard() {
+  const nav = useNavigate();
   const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) || '');
   const [input, setInput] = useState(token);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [view, setView] = useState<'dash' | 'list'>('dash');
+  const [q, setQ] = useState('');
 
   function load(tk: string) {
     if (!tk) return;
@@ -39,124 +52,231 @@ export default function Dashboard() {
     load(input);
   }
 
-  // สรุปภาพรวมแบบเบา ๆ ฝั่ง client (Looker Studio ทำ metric หลัก)
-  const summary = useMemo(() => {
-    const byStatus: Record<string, number> = {};
-    let prescreened = 0;
+  const m = useMemo(() => {
+    const total = candidates.length;
+    const count = (arr: string[]) => candidates.filter((c) => arr.includes(stOf(c))).length;
+    const prescreened = count(AFTER_PRESCREEN);
+    const shortlist = count(AFTER_SHORTLIST);
+    const interview = count(AFTER_INTERVIEW);
+    const accepted = candidates.filter((c) => stOf(c) === 'accepted').length;
+    // by faculty
+    const byField: Record<string, number> = {};
     candidates.forEach((c) => {
-      const st = c.application?.status || 'submitted';
-      byStatus[st] = (byStatus[st] || 0) + 1;
-      if (c.aiStatus === 'done') prescreened++;
+      const k = (c.faculty || 'อื่น ๆ').trim() || 'อื่น ๆ';
+      byField[k] = (byField[k] || 0) + 1;
     });
-    return { total: candidates.length, byStatus, prescreened };
+    const fields = Object.entries(byField)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+    return { total, prescreened, shortlist, interview, accepted, fields };
   }, [candidates]);
 
-  return (
-    <div className="page">
-      <section className="hero hero-sm">
-        <h1>Ops Recruitment Dashboard</h1>
-        <p className="lead">ภาพรวมผู้สมัครฝึกงาน (เฉพาะทีม Recruitment)</p>
-      </section>
+  const recent = useMemo(() => [...candidates].reverse().slice(0, 5), [candidates]);
+  const filtered = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    if (!s) return candidates;
+    return candidates.filter((c) =>
+      `${c.firstName} ${c.lastName} ${c.university} ${c.faculty}`.toLowerCase().includes(s),
+    );
+  }, [candidates, q]);
 
-      <form className="form form-narrow" onSubmit={saveToken}>
-        <div className="field">
-          <label className="field-label">Admin Token</label>
-          <input
-            type="password"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="วาง ADMIN_TOKEN"
-          />
-          <p className="hint">เก็บไว้ใน browser นี้เท่านั้น (localStorage) ไม่ถูกส่งขึ้น repo</p>
+  const pct = (n: number) => (m.total ? Math.round((n / m.total) * 100) : 0);
+  const fmtDate = (d: string) => (d ? new Date(d).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' }) : '—');
+
+  function Row({ c }: { c: Candidate }) {
+    const st = stOf(c);
+    const bs = badgeStyle(st);
+    return (
+      <div className="dt-row" onClick={() => nav(`/admin/candidate/${c.candidateId}`)}>
+        <span style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span className="avatar-ini" style={{ flexBasis: 36, height: 36 }}>
+            {initial(c.firstName)}
+          </span>
+          <span>
+            <span style={{ font: "600 14px 'Anuphan'", color: '#fff', display: 'block' }}>
+              {c.firstName} {c.lastName}
+            </span>
+            <span style={{ fontSize: 12, color: '#7E8DB0' }}>{c.university}</span>
+          </span>
+        </span>
+        <span style={{ flex: '0 0 150px', fontSize: 13, color: '#C4CEE6' }}>{c.faculty || '—'}</span>
+        <span style={{ flex: '0 0 80px', fontSize: 13, color: '#C4CEE6' }}>{c.gpa || '—'}</span>
+        <span style={{ flex: '0 0 130px', fontSize: 13, color: '#A9B6D4' }}>{fmtDate(String(c.createdAt))}</span>
+        <span style={{ flex: '0 0 130px' }}>
+          <span className="badge" style={bs}>
+            {statusLabel(st)}
+          </span>
+        </span>
+      </div>
+    );
+  }
+
+  // login gate
+  if (!token || error === 'Admin token ไม่ถูกต้อง') {
+    return (
+      <div className="admin-shell">
+        <div className="admin-main" style={{ margin: '0 auto' }}>
+          <div className="token-gate">
+            <h1 className="admin-h1" style={{ fontSize: 24 }}>
+              เข้าสู่ระบบ Admin
+            </h1>
+            <p className="admin-sub" style={{ marginBottom: 20 }}>
+              สำหรับทีม Recruitment เท่านั้น
+            </p>
+            <form onSubmit={saveToken} className="panel">
+              <label className="lbl">Admin Token</label>
+              <input className="fld" type="password" value={input} onChange={(e) => setInput(e.target.value)} placeholder="วาง ADMIN_TOKEN" />
+              {error && <p className="error-text" style={{ marginTop: 12 }}>{error}</p>}
+              <button className="btn btn-red btn-block" style={{ marginTop: 16 }}>
+                เข้าสู่ระบบ
+              </button>
+            </form>
+          </div>
         </div>
-        <button type="submit" className="btn btn-primary">
-          เข้าสู่ระบบ
-        </button>
-      </form>
+      </div>
+    );
+  }
 
-      {error && <p className="error-text">{error}</p>}
+  return (
+    <div className="admin-shell">
+      <AdminSidebar active={view} count={m.total} onDash={() => setView('dash')} onList={() => setView('list')} />
+      <main className="admin-main scroll">
+        {view === 'dash' ? (
+          <>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 26 }}>
+              <div>
+                <h1 className="admin-h1">ภาพรวมการรับสมัคร</h1>
+                <p className="admin-sub">Order Fulfillment Internship 2026</p>
+              </div>
+            </div>
 
-      {token && !error && (
-        <>
-          <section className="section">
-            <div className="stat-row">
-              <div className="stat">
-                <span className="stat-num">{summary.total}</span>
-                <span className="stat-label">ผู้สมัครทั้งหมด</span>
+            <div className="kpi-grid">
+              <div className="kpi">
+                <div className="lb">ใบสมัครทั้งหมด</div>
+                <div className="n">{m.total}</div>
+                <div className="sub">รวมทุกสถานะ</div>
               </div>
-              <div className="stat">
-                <span className="stat-num">{summary.prescreened}</span>
-                <span className="stat-label">ผ่าน AI pre-screen</span>
+              <div className="kpi">
+                <div className="lb">ผ่านคัดเลือก</div>
+                <div className="n gold">{m.prescreened}</div>
+                <div className="sub">{pct(m.prescreened)}% ของใบสมัคร</div>
               </div>
-              {Object.entries(summary.byStatus).map(([st, n]) => (
-                <div key={st} className="stat">
-                  <span className="stat-num">{n}</span>
-                  <span className="stat-label">{statusLabel(st)}</span>
+              <div className="kpi">
+                <div className="lb">นัดสัมภาษณ์</div>
+                <div className="n cyan">{m.interview}</div>
+                <div className="sub">อยู่ระหว่างสัมภาษณ์</div>
+              </div>
+              <div className="kpi gold">
+                <div className="lb">รับเข้าแล้ว</div>
+                <div className="n">
+                  {m.accepted} <span style={{ fontSize: 18, color: '#7E8DB0' }}>/ {QUOTA}</span>
                 </div>
+                <div className="sub">เหลือโควตา {Math.max(0, QUOTA - m.accepted)} อัตรา</div>
+              </div>
+            </div>
+
+            <div className="two-col">
+              <div className="panel">
+                <h3>Pipeline การคัดเลือก</h3>
+                {[
+                  { lb: 'ส่งใบสมัคร', n: m.total, grad: 'linear-gradient(90deg,#3FC5F0,#2A9BC7)', color: '#05122B' },
+                  { lb: 'คัดเลือกใบสมัคร', n: m.prescreened, grad: 'linear-gradient(90deg,#FFC42E,#E0A312)', color: '#05122B' },
+                  { lb: 'Shortlist', n: m.shortlist, grad: 'linear-gradient(90deg,#FFC42E,#E0A312)', color: '#05122B' },
+                  { lb: 'สัมภาษณ์', n: m.interview, grad: 'linear-gradient(90deg,#E2231A,#B4160F)', color: '#fff' },
+                  { lb: 'รับเข้า', n: m.accepted, grad: '#4FD08A', color: '#05122B' },
+                ].map((r) => (
+                  <div key={r.lb} className="funnel-row">
+                    <span className="lb">{r.lb}</span>
+                    <div className="funnel-track">
+                      <div className="funnel-fill" style={{ width: `${Math.max(pct(r.n), r.n ? 8 : 0)}%`, background: r.grad, color: r.color }}>
+                        {r.n}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="panel">
+                <h3>แยกตามสายที่สมัคร</h3>
+                {m.fields.length === 0 && <p className="muted">ยังไม่มีข้อมูล</p>}
+                {m.fields.map(([name, n], i) => (
+                  <div key={name} className="byfield-row">
+                    <div className="byfield-top">
+                      <span style={{ color: '#C4CEE6' }}>{name}</span>
+                      <span style={{ color: '#fff', fontWeight: 700 }}>{n}</span>
+                    </div>
+                    <div className="byfield-track">
+                      <div style={{ width: `${pct(n)}%`, height: '100%', background: FIELD_COLORS[i % FIELD_COLORS.length] }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="panel">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <h3 style={{ margin: 0 }}>ผู้สมัครล่าสุด</h3>
+                <button className="admin-nav" style={{ width: 'auto', padding: 0, color: '#3FC5F0' }} onClick={() => setView('list')}>
+                  ดูทั้งหมด →
+                </button>
+              </div>
+              {loading && <p className="muted">กำลังโหลด…</p>}
+              {!loading && recent.length === 0 && <p className="muted">ยังไม่มีผู้สมัคร</p>}
+              {recent.map((c) => {
+                const st = stOf(c);
+                const bs = badgeStyle(st);
+                return (
+                  <div key={c.candidateId} className="recent-row" onClick={() => nav(`/admin/candidate/${c.candidateId}`)}>
+                    <div className="avatar-ini">{initial(c.firstName)}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ font: "600 14px 'Anuphan'", color: '#fff' }}>
+                        {c.firstName} {c.lastName}
+                      </div>
+                      <div style={{ fontSize: 12, color: '#7E8DB0' }}>
+                        {c.university} · {c.faculty}
+                      </div>
+                    </div>
+                    <div style={{ flex: '0 0 90px', fontSize: 13, color: '#A9B6D4' }}>GPAX {c.gpa || '—'}</div>
+                    <span className="badge" style={bs}>
+                      {statusLabel(st)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        ) : (
+          <>
+            <h1 className="admin-h1">ผู้สมัครทั้งหมด</h1>
+            <p className="admin-sub" style={{ marginBottom: 22 }}>
+              {m.total} ใบสมัคร · Order Fulfillment Internship 2026
+            </p>
+            <div className="admin-toolbar">
+              <div className="admin-search">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7E8DB0" strokeWidth="2">
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="M21 21l-4.3-4.3" />
+                </svg>
+                <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="ค้นหาชื่อ / มหาวิทยาลัย..." />
+              </div>
+            </div>
+            <div className="dt">
+              <div className="dt-head">
+                <span style={{ flex: 1 }}>ผู้สมัคร</span>
+                <span style={{ flex: '0 0 150px' }}>สาย</span>
+                <span style={{ flex: '0 0 80px' }}>GPAX</span>
+                <span style={{ flex: '0 0 130px' }}>ยื่นเมื่อ</span>
+                <span style={{ flex: '0 0 130px' }}>สถานะ</span>
+              </div>
+              {loading && <div className="dt-row"><span className="muted">กำลังโหลด…</span></div>}
+              {!loading && filtered.length === 0 && <div className="dt-row"><span className="muted">ไม่พบผู้สมัคร</span></div>}
+              {filtered.map((c) => (
+                <Row key={c.candidateId} c={c} />
               ))}
             </div>
-          </section>
-
-          {LOOKER_STUDIO_URL && (
-            <section className="section">
-              <h2>Looker Studio</h2>
-              <div className="looker-wrap">
-                <iframe title="Looker Studio" src={LOOKER_STUDIO_URL} allowFullScreen />
-              </div>
-            </section>
-          )}
-
-          <section className="section">
-            <h2>รายชื่อผู้สมัคร</h2>
-            {loading && <p className="muted">กำลังโหลด…</p>}
-            <div className="table-wrap">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>รหัส</th>
-                    <th>ชื่อ-สกุล</th>
-                    <th>มหาวิทยาลัย / คณะ</th>
-                    <th>AI Score</th>
-                    <th>สถานะ</th>
-                    <th>Tracking</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {candidates.map((c) => (
-                    <tr key={c.candidateId}>
-                      <td>{c.candidateId}</td>
-                      <td>
-                        {c.firstName} {c.lastName}
-                      </td>
-                      <td>
-                        {c.university}
-                        <br />
-                        <span className="muted">{c.faculty}</span>
-                      </td>
-                      <td>{c.aiStatus === 'done' ? c.aiMatchScore : c.aiStatus}</td>
-                      <td>{statusLabel(c.application?.status || 'submitted')}</td>
-                      <td>{c.application?.trackingCode || '-'}</td>
-                      <td>
-                        <Link to={`/admin/candidate/${c.candidateId}`} className="btn btn-sm btn-ghost">
-                          เปิด
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                  {!loading && candidates.length === 0 && (
-                    <tr>
-                      <td colSpan={7} className="muted">
-                        ยังไม่มีผู้สมัคร
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        </>
-      )}
+          </>
+        )}
+      </main>
     </div>
   );
 }

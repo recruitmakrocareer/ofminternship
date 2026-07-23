@@ -1,57 +1,32 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import {
-  adminGetCandidate,
-  adminGetPhoto,
-  adminRetryScreen,
-  adminUpdateStatus,
-  ALL_STATUSES,
-  type Application,
-  type Candidate,
-} from '../lib/api';
-import { statusLabel } from '../components/StatusStepper';
-import { FIELD_LABELS } from '../lib/formSchema';
+import { useNavigate, useParams } from 'react-router-dom';
+import { adminGetCandidate, adminGetPhoto, adminUpdateStatus, type Application, type Candidate } from '../lib/api';
+import { badgeStyle, statusLabel, STATUS_ACTIONS } from '../lib/status';
+import AdminSidebar from './AdminSidebar';
 
 const TOKEN_KEY = 'mkr_admin_token';
+const initial = (n: string) => (n || '?').trim().charAt(0) || '?';
 
-function renderFormValue(v: unknown): string {
-  if (v == null || v === '') return '—';
-  if (Array.isArray(v)) return v.length ? v.join(', ') : '—';
-  if (typeof v === 'boolean') return v ? 'ใช่' : 'ไม่';
-  return String(v);
-}
-
-// หน้าโปรไฟล์ผู้สมัคร (แอดมิน) — ข้อมูลครบ + ผล AI + ไฟล์ Drive + เปลี่ยนสถานะ
 export default function CandidateProfile() {
   const { id = '' } = useParams();
+  const nav = useNavigate();
   const token = localStorage.getItem(TOKEN_KEY) || '';
 
-  const [candidate, setCandidate] = useState<Candidate | null>(null);
-  const [applications, setApplications] = useState<Application[]>([]);
-  const [photoUri, setPhotoUri] = useState<string>('');
+  const [c, setC] = useState<Candidate | null>(null);
+  const [app, setApp] = useState<Application | null>(null);
+  const [photoUri, setPhotoUri] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-
-  const [newStatus, setNewStatus] = useState('');
-  const [note, setNote] = useState('');
-  const [branch, setBranch] = useState('');
 
   function reload() {
     setLoading(true);
     adminGetCandidate(token, id)
       .then((r) => {
         if (r.ok && r.candidate) {
-          setCandidate(r.candidate);
-          setApplications(r.applications || []);
-          const app = (r.applications || [])[0];
-          if (app) {
-            setNewStatus(app.status);
-            setBranch(app.assignedBranch || '');
-          }
-        } else {
-          setError(r.error === 'unauthorized' ? 'Admin token ไม่ถูกต้อง' : r.error || 'error');
-        }
+          setC(r.candidate);
+          setApp((r.applications || [])[0] || null);
+        } else setError(r.error === 'unauthorized' ? 'Admin token ไม่ถูกต้อง' : r.error || 'error');
       })
       .catch(() => setError('เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ'))
       .finally(() => setLoading(false));
@@ -59,12 +34,11 @@ export default function CandidateProfile() {
 
   useEffect(() => {
     if (!token) {
-      setError('ยังไม่ได้ใส่ Admin token — กลับไปหน้า Dashboard ก่อน');
+      setError('ยังไม่ได้เข้าสู่ระบบ Admin');
       setLoading(false);
       return;
     }
     reload();
-    // โหลดรูปถ่ายแยก (ผ่าน endpoint ที่ต้องมี ADMIN_TOKEN) แล้วประกอบเป็น data URI
     setPhotoUri('');
     adminGetPhoto(token, id).then((r) => {
       if (r.ok && r.dataBase64) setPhotoUri(`data:${r.mimeType || 'image/jpeg'};base64,${r.dataBase64}`);
@@ -72,245 +46,174 @@ export default function CandidateProfile() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  const app = applications[0];
-
-  async function saveStatus() {
+  async function setStatus(status: string) {
     if (!app) return;
     setBusy(true);
     try {
-      const res = await adminUpdateStatus(token, {
-        trackingCode: app.trackingCode,
-        status: newStatus,
-        note,
-        assignedBranch: branch,
-      });
-      if (res.ok) {
-        setNote('');
-        reload();
-      } else {
-        alert('บันทึกไม่สำเร็จ: ' + (res.error || 'unknown'));
-      }
+      const res = await adminUpdateStatus(token, { trackingCode: app.trackingCode, status });
+      if (res.ok) reload();
+      else alert('บันทึกไม่สำเร็จ: ' + (res.error || 'unknown'));
     } finally {
       setBusy(false);
     }
   }
 
-  async function retry() {
-    setBusy(true);
-    try {
-      const res = await adminRetryScreen(token, id);
-      if (!res.ok) alert('AI retry ไม่สำเร็จ: ' + (res.error || 'unknown'));
-      reload();
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  if (loading) return <div className="page"><p className="muted">กำลังโหลด…</p></div>;
-  if (error)
-    return (
-      <div className="page">
-        <p className="error-text">{error}</p>
-        <Link to="/admin" className="btn btn-ghost">
-          ← กลับ Dashboard
-        </Link>
-      </div>
-    );
-  if (!candidate) return null;
-
-  const c = candidate;
-
-  return (
-    <div className="page">
-      <Link to="/admin" className="btn btn-ghost btn-sm">
-        ← กลับ Dashboard
-      </Link>
-
-      <section className="section">
-        <div className="profile-header">
-          {photoUri ? (
-            <img className="candidate-photo" src={photoUri} alt="รูปถ่ายผู้สมัคร" />
-          ) : (
-            <div className="candidate-photo candidate-photo-empty">ไม่มีรูป</div>
-          )}
-          <div>
-            <h1 style={{ margin: 0 }}>
-              {c.firstName} {c.lastName}
-            </h1>
-            <p className="muted" style={{ marginTop: 4 }}>
-              {c.candidateId} · {c.email} · {c.phone}
-            </p>
-          </div>
-        </div>
-
-        <div className="profile-grid">
-          <div className="profile-block">
-            <h3>การศึกษา</h3>
-            <dl className="kv">
-              <dt>มหาวิทยาลัย</dt>
-              <dd>{c.university}</dd>
-              <dt>คณะ / สาขา</dt>
-              <dd>
-                {c.faculty} / {c.major}
-              </dd>
-              <dt>GPA</dt>
-              <dd>{c.gpa}</dd>
-              <dt>ชั้นปี / ปีจบ</dt>
-              <dd>
-                {c.yearLevel} / {c.expectedGradYear}
-              </dd>
-            </dl>
-          </div>
-
-          <div className="profile-block">
-            <h3>เอกสาร</h3>
-            <ul className="file-links">
-              {c.resumeUrl && (
-                <li>
-                  <a href={c.resumeUrl} target="_blank" rel="noreferrer">
-                    📄 Resume
-                  </a>
-                </li>
-              )}
-              {c.transcriptUrl && (
-                <li>
-                  <a href={c.transcriptUrl} target="_blank" rel="noreferrer">
-                    📄 Transcript
-                  </a>
-                </li>
-              )}
-              {(c.portfolio || []).map((p, i) => (
-                <li key={i}>
-                  <a href={p.url} target="_blank" rel="noreferrer">
-                    📎 {p.name || `Portfolio ${i + 1}`}
-                  </a>
-                </li>
-              ))}
-              {!c.resumeUrl && !c.transcriptUrl && (c.portfolio || []).length === 0 && (
-                <li className="muted">ไม่มีไฟล์แนบ</li>
-              )}
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      <section className="section">
-        <h2>ผลการคัดกรอง AI</h2>
-        <div className="ai-card">
-          <div className="ai-head">
-            <span className={`badge badge-${c.aiStatus}`}>{c.aiStatus}</span>
-            {c.aiStatus === 'done' && (
-              <span className="ai-score">
-                Match Score: <strong>{c.aiMatchScore}</strong> / 100
-              </span>
-            )}
-            <button className="btn btn-sm btn-ghost" onClick={retry} disabled={busy}>
-              🔄 รัน AI ใหม่
-            </button>
-          </div>
-
-          {c.aiSummary && <p className="ai-summary">{c.aiSummary}</p>}
-
-          {c.aiRecommendedBranch && (
-            <p>
-              <strong>สาขาที่แนะนำ:</strong> {c.aiRecommendedBranch}
-            </p>
-          )}
-
-          {(c.aiMatchedRoles || []).length > 0 && (
-            <div>
-              <strong>ตำแหน่งที่จับคู่:</strong>
-              <ul className="roles">
-                {c.aiMatchedRoles.map((r, i) => (
-                  <li key={i}>
-                    {r.role} <span className="muted">({r.score})</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {(c.aiFlags || []).length > 0 && (
-            <p className="chips">
-              {c.aiFlags.map((f, i) => (
-                <span key={i} className="chip chip-warn">
-                  ⚑ {f}
-                </span>
-              ))}
-            </p>
-          )}
-        </div>
-      </section>
-
-      {c.applicationForm && Object.keys(c.applicationForm).length > 0 && (
-        <section className="section">
-          <h2>รายละเอียดใบสมัคร (แบบฟอร์มเต็ม)</h2>
-          <div className="profile-block">
-            <dl className="kv">
-              {FIELD_LABELS.map(({ key, label }) => {
-                const v = c.applicationForm![key as string];
-                if (v == null || v === '' || (Array.isArray(v) && v.length === 0)) return null;
-                return (
-                  <div key={key as string} style={{ display: 'contents' }}>
-                    <dt>{label}</dt>
-                    <dd>{renderFormValue(v)}</dd>
-                  </div>
-                );
-              })}
-            </dl>
-          </div>
-        </section>
-      )}
-
-      {app && (
-        <section className="section">
-          <h2>ใบสมัคร · {app.trackingCode}</h2>
-          <p className="muted">
-            สถานะปัจจุบัน: <strong>{statusLabel(app.status)}</strong>
-          </p>
-
-          <div className="grid-2">
-            <div className="field">
-              <label className="field-label">เปลี่ยนสถานะ</label>
-              <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)}>
-                {ALL_STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {statusLabel(s)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label className="field-label">สาขาที่กำหนด</label>
-              <input value={branch} onChange={(e) => setBranch(e.target.value)} />
-            </div>
-          </div>
-          <div className="field">
-            <label className="field-label">หมายเหตุ</label>
-            <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="เหตุผล / บันทึกภายใน" />
-          </div>
-          <button className="btn btn-primary" onClick={saveStatus} disabled={busy}>
-            {busy ? 'กำลังบันทึก…' : 'บันทึกสถานะ'}
-          </button>
-
-          <h3 style={{ marginTop: 24 }}>ประวัติสถานะ</h3>
-          <ul className="history">
-            {app.statusHistory
-              .slice()
-              .reverse()
-              .map((h, i) => (
-                <li key={i}>
-                  <strong>{statusLabel(h.status)}</strong>
-                  <span className="muted">
-                    {' '}
-                    · {h.at ? new Date(h.at).toLocaleString('th-TH') : ''} · {h.by}
-                    {h.note ? ` · ${h.note}` : ''}
-                  </span>
-                </li>
-              ))}
-          </ul>
-        </section>
-      )}
+  const shell = (body: React.ReactNode) => (
+    <div className="admin-shell">
+      <AdminSidebar active="list" onDash={() => nav('/admin')} onList={() => nav('/admin')} />
+      <main className="admin-main scroll">{body}</main>
     </div>
+  );
+
+  if (loading) return shell(<p className="muted">กำลังโหลด…</p>);
+  if (error || !c)
+    return shell(
+      <div>
+        <p className="error-text">{error || 'ไม่พบข้อมูล'}</p>
+        <button className="btn btn-ghost" style={{ marginTop: 16 }} onClick={() => nav('/admin')}>
+          ← กลับ Dashboard
+        </button>
+      </div>,
+    );
+
+  const form = c.applicationForm || {};
+  const skills: string[] = Array.isArray(form.skills) ? form.skills : [];
+  const st = app?.status || 'submitted';
+  const bs = badgeStyle(st);
+  const docs = [
+    { url: c.resumeUrl, name: 'Resume', stroke: '#FF5A50' },
+    { url: c.transcriptUrl, name: 'Transcript', stroke: '#FFC42E' },
+    { url: (form._files && form._files.photo && form._files.photo.url) || '', name: 'รูปถ่าย', stroke: '#3FC5F0' },
+  ].filter((d) => d.url);
+
+  return shell(
+    <div>
+      <button className="admin-nav" style={{ width: 'auto', padding: 0, color: '#3FC5F0', marginBottom: 18 }} onClick={() => nav('/admin')}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M15 18l-6-6 6-6" />
+        </svg>
+        กลับไปรายชื่อ
+      </button>
+
+      <div className="profile-2col">
+        {/* left */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="pcard" style={{ textAlign: 'center' }}>
+            <div className="pphoto">{photoUri ? <img src={photoUri} alt="รูปผู้สมัคร" /> : 'ไม่มีรูป'}</div>
+            <h2 style={{ font: "800 22px 'Anuphan'", margin: '0 0 4px', color: '#fff' }}>
+              {c.firstName} {c.lastName}
+            </h2>
+            <p style={{ fontSize: 13, color: '#A9B6D4', margin: '0 0 14px' }}>{c.faculty || '—'}</p>
+            <span className="badge" style={bs}>
+              {statusLabel(st)}
+            </span>
+            <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
+              <button className="btn btn-red" style={{ flex: 1, fontSize: 13, padding: 12 }} disabled={busy} onClick={() => setStatus('interview')}>
+                นัดสัมภาษณ์
+              </button>
+              <button className="status-btn red" style={{ padding: '12px 14px' }} disabled={busy} onClick={() => setStatus('rejected')}>
+                ✕
+              </button>
+            </div>
+          </div>
+
+          <div className="pcard">
+            <div style={{ font: "700 13px 'Anuphan'", color: '#fff', marginBottom: 14 }}>ข้อมูลติดต่อ</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 13 }}>
+              <div style={{ display: 'flex', gap: 10, color: '#C4CEE6', alignItems: 'center' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3FC5F0" strokeWidth="2">
+                  <rect x="2" y="4" width="20" height="16" rx="2" />
+                  <path d="M22 6l-10 7L2 6" />
+                </svg>
+                {c.email}
+              </div>
+              <div style={{ display: 'flex', gap: 10, color: '#C4CEE6', alignItems: 'center' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3FC5F0" strokeWidth="2">
+                  <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0122 16.92z" />
+                </svg>
+                {c.phone}
+              </div>
+              <div style={{ display: 'flex', gap: 10, color: '#C4CEE6', alignItems: 'center' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3FC5F0" strokeWidth="2">
+                  <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+                  <path d="M6 12v5c3 3 9 3 12 0v-5" />
+                </svg>
+                {c.university}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* right */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="stat3">
+            <div className="box">
+              <div className="lb">GPAX</div>
+              <div className="v">{c.gpa || '—'}</div>
+            </div>
+            <div className="box">
+              <div className="lb">ชั้นปี</div>
+              <div className="v">{c.yearLevel || form.year || '—'}</div>
+            </div>
+            <div className="box">
+              <div className="lb">พร้อมเริ่ม</div>
+              <div className="v sm">{form.availableFrom || '—'}</div>
+            </div>
+          </div>
+
+          <div className="pcard">
+            <div style={{ font: "700 15px 'Anuphan'", color: '#fff', marginBottom: 14 }}>ทักษะเด่น</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: skills.length ? 20 : 0 }}>
+              {skills.length ? skills.map((s) => <span key={s} className="skill-chip">{s}</span>) : <span className="muted">—</span>}
+            </div>
+            <div style={{ font: "700 15px 'Anuphan'", color: '#fff', margin: '4px 0 8px' }}>ประสบการณ์ / กิจกรรม</div>
+            <p style={{ fontSize: 13.5, color: '#C4CEE6', lineHeight: 1.7, margin: 0 }}>{form.activities || '—'}</p>
+          </div>
+
+          <div className="pcard">
+            <div style={{ font: "700 15px 'Anuphan'", color: '#fff', marginBottom: 16 }}>เอกสารแนบ</div>
+            {docs.length === 0 ? (
+              <p className="muted">ไม่มีเอกสารแนบ</p>
+            ) : (
+              <div className="doc-grid">
+                {docs.map((d) => (
+                  <a key={d.name} className="doc-card" href={d.url} target="_blank" rel="noreferrer">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={d.stroke} strokeWidth="1.8">
+                      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                      <path d="M14 2v6h6" />
+                    </svg>
+                    <div>
+                      <div className="n">{d.name}</div>
+                      <div className="s">เปิดใน Drive</div>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="status-control">
+            <div style={{ font: "700 15px 'Anuphan'", color: '#fff', marginBottom: 14 }}>เปลี่ยนสถานะใบสมัคร</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {STATUS_ACTIONS.map((a) => (
+                <button
+                  key={a.status}
+                  className={`status-btn ${st === a.status ? 'on' : ''} ${a.variant || ''}`}
+                  disabled={busy}
+                  onClick={() => setStatus(a.status)}
+                >
+                  {a.label}
+                </button>
+              ))}
+            </div>
+            {app && (
+              <p className="muted" style={{ fontSize: 12, marginTop: 14 }}>
+                รหัสติดตาม: {app.trackingCode} · สถานะปัจจุบัน: {statusLabel(st)}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>,
   );
 }

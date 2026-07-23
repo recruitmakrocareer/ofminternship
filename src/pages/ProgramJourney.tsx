@@ -1,9 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { fetchPrograms, type Program } from '../lib/api';
-import JourneyTimeline from '../components/JourneyTimeline';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { fetchPrograms } from '../lib/api';
 
-// แปลง YouTube URL ให้เป็น embed URL (รองรับ watch?v= / youtu.be / unlisted)
 function toYouTubeEmbed(url: string): string {
   try {
     const u = new URL(url);
@@ -16,67 +14,70 @@ function toYouTubeEmbed(url: string): string {
   }
 }
 
-// หน้าเส้นทางโครงการ — Journey visualization (Framer Motion) + slot วิดีโอ/Lottie
+const STEPS = [
+  { title: 'สมัครออนไลน์', desc: 'กรอกใบสมัครและแนบเอกสารให้ครบถ้วน', dur: '1 สัปดาห์' },
+  { title: 'สัมภาษณ์', desc: 'พูดคุยกับทีมและหัวหน้าสาขา', dur: '1–2 สัปดาห์' },
+  { title: 'ฝึกงานจริง', desc: 'ลงสาขา มีพี่เลี้ยง ทำโปรเจกต์จริง', dur: '16+ สัปดาห์' },
+];
+
 export default function ProgramJourney() {
-  const [programs, setPrograms] = useState<Program[]>([]);
-  const [loading, setLoading] = useState(true);
+  const nav = useNavigate();
+  const [videoUrl, setVideoUrl] = useState('');
 
   useEffect(() => {
-    fetchPrograms()
-      .then((r) => setPrograms(r.ok && r.programs ? r.programs : []))
-      .finally(() => setLoading(false));
+    fetchPrograms().then((r) => {
+      const p = r.ok && r.programs ? r.programs.find((x) => x.journeyVideoUrl) : null;
+      if (p?.journeyVideoUrl) setVideoUrl(toYouTubeEmbed(p.journeyVideoUrl));
+    });
   }, []);
 
-  // ใช้โครงการแรกที่มี journeySteps เป็นตัวแสดงหลัก
-  const program = useMemo(
-    () => programs.find((p) => p.journeySteps?.length) || programs[0],
-    [programs],
-  );
-
   return (
-    <div className="page">
-      <section className="hero hero-sm">
-        <h1>เส้นทางโครงการฝึกงาน</h1>
-        <p className="lead">ตั้งแต่วันสมัครจนจบโครงการ คุณจะได้เจออะไรบ้าง</p>
-      </section>
+    <div>
+      <div className="section-head" style={{ paddingTop: 24 }}>
+        <p className="eyebrow">เส้นทางโครงการ</p>
+        <h2 className="section-title" style={{ fontSize: 23, lineHeight: 1.25 }}>
+          ตั้งแต่สมัคร จนจบโครงการ
+        </h2>
+      </div>
 
-      {loading && <p className="muted">กำลังโหลด…</p>}
+      <div className="video-slot">
+        {videoUrl ? (
+          <iframe title="วิดีโอแนะนำโครงการ" src={videoUrl} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
+        ) : (
+          <div className="video-ph">วิดีโอแนะนำโครงการ (YouTube)</div>
+        )}
+      </div>
 
-      {program && (
-        <section className="section">
-          <h2>{program.name}</h2>
-
-          {program.journeyVideoUrl && (
-            <div className="video-wrap">
-              <iframe
-                title="Journey video"
-                src={toYouTubeEmbed(program.journeyVideoUrl)}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
+      <div className="journey">
+        <div className="journey-line" />
+        {STEPS.map((s, i) => (
+          <div key={i} className="jt-row">
+            <div className="jt-num">{i + 1}</div>
+            <div className="jt-card">
+              <div className="t">{s.title}</div>
+              <p>{s.desc}</p>
+              <span className="jt-dur">{s.dur}</span>
             </div>
-          )}
-
-          {program.journeySteps?.length > 0 ? (
-            <JourneyTimeline steps={program.journeySteps} />
-          ) : (
-            <p className="muted">ยังไม่มีข้อมูลเส้นทางโครงการ</p>
-          )}
-
-          {/* Slot สำหรับ Lottie (export จาก Canva) — โหลดแบบ optional */}
-          {program.lottieJsonUrl && (
-            <p className="muted" style={{ marginTop: 24 }}>
-              🎬 Lottie animation: <code>{program.lottieJsonUrl}</code>
-            </p>
-          )}
-
-          <div className="cta-row" style={{ marginTop: 32 }}>
-            <Link to="/apply" className="btn btn-primary">
-              พร้อมสมัครแล้ว
-            </Link>
           </div>
-        </section>
-      )}
+        ))}
+        <div className="jt-row">
+          <div className="jt-num gold">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0A1A3F" strokeWidth="2.5">
+              <path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 01-10 0z M17 4h2a2 2 0 010 4h-2M7 4H5a2 2 0 000 4h2" />
+            </svg>
+          </div>
+          <div className="jt-card gold">
+            <div className="t">จบโครงการ + โอกาสได้งาน</div>
+            <p style={{ color: '#C4CEE6' }}>มีสิทธิ์รับเข้าเป็นพนักงานจริงกับแม็คโคร</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="cta-stack">
+        <button className="btn btn-red" onClick={() => nav('/apply')}>
+          พร้อมสมัครแล้ว →
+        </button>
+      </div>
     </div>
   );
 }
