@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   adminGetCandidate,
+  adminGetPhoto,
   adminRetryScreen,
   adminUpdateStatus,
   ALL_STATUSES,
@@ -27,6 +28,7 @@ export default function CandidateProfile() {
 
   const [candidate, setCandidate] = useState<Candidate | null>(null);
   const [applications, setApplications] = useState<Application[]>([]);
+  const [photoUri, setPhotoUri] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -62,6 +64,11 @@ export default function CandidateProfile() {
       return;
     }
     reload();
+    // โหลดรูปถ่ายแยก (ผ่าน endpoint ที่ต้องมี ADMIN_TOKEN) แล้วประกอบเป็น data URI
+    setPhotoUri('');
+    adminGetPhoto(token, id).then((r) => {
+      if (r.ok && r.dataBase64) setPhotoUri(`data:${r.mimeType || 'image/jpeg'};base64,${r.dataBase64}`);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
@@ -120,12 +127,21 @@ export default function CandidateProfile() {
       </Link>
 
       <section className="section">
-        <h1>
-          {c.firstName} {c.lastName}
-        </h1>
-        <p className="muted">
-          {c.candidateId} · {c.email} · {c.phone}
-        </p>
+        <div className="profile-header">
+          {photoUri ? (
+            <img className="candidate-photo" src={photoUri} alt="รูปถ่ายผู้สมัคร" />
+          ) : (
+            <div className="candidate-photo candidate-photo-empty">ไม่มีรูป</div>
+          )}
+          <div>
+            <h1 style={{ margin: 0 }}>
+              {c.firstName} {c.lastName}
+            </h1>
+            <p className="muted" style={{ marginTop: 4 }}>
+              {c.candidateId} · {c.email} · {c.phone}
+            </p>
+          </div>
+        </div>
 
         <div className="profile-grid">
           <div className="profile-block">

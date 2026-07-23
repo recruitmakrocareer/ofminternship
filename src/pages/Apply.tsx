@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { fetchPrograms, submitApplication, type Program, type ApplyPayload } from '../lib/api';
 import { fileToBase64 } from '../lib/fileToBase64';
-import { CONSENT_VERSION, MAX_PORTFOLIO_BYTES } from '../config';
+import { CONSENT_VERSION, MAX_DOC_BYTES, MAX_PORTFOLIO_BYTES } from '../config';
 import FileUpload from '../components/FileUpload';
 import { Field, RadioGroup, CheckboxGroup, RankSelect } from '../components/formFields';
 import {
@@ -32,6 +32,7 @@ const MAX_10MB = 10 * 1024 * 1024;
 export default function Apply() {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [data, setData] = useState<MakroFormData>(EMPTY_FORM);
+  const [photo, setPhoto] = useState<File | null>(null);
   const [resume, setResume] = useState<File | null>(null);
   const [transcript, setTranscript] = useState<File | null>(null);
   const [coopLetter, setCoopLetter] = useState<File | null>(null);
@@ -107,6 +108,7 @@ export default function Apply() {
       if (d.freshFoodRank.length === 0) return 'กรุณาเลือก/เรียงลำดับความสนใจแผนกอาหารสด';
     }
     if (s === 5) {
+      if (!photo) return 'กรุณาแนบรูปถ่ายหน้าตรง';
       if (!resume) return 'กรุณาแนบ Resume';
       if (!transcript) return 'กรุณาแนบ Transcript';
     }
@@ -169,6 +171,7 @@ export default function Apply() {
         },
         consent: { accepted: data.certifyAccuracy && data.acknowledgePrivacy, version: CONSENT_VERSION },
         files: {
+          photo: photo ? await fileToBase64(photo) : undefined,
           resume: resume ? await fileToBase64(resume) : undefined,
           transcript: transcript ? await fileToBase64(transcript) : undefined,
           coopLetter: coopLetter ? await fileToBase64(coopLetter) : undefined,
@@ -443,6 +446,14 @@ export default function Apply() {
         {step === 5 && (
           <fieldset>
             <legend>ส่วนที่ 6 · เอกสารประกอบการสมัคร</legend>
+            <FileUpload
+              label="รูปถ่ายหน้าตรง"
+              required
+              accept=".jpg,.jpeg,.png"
+              maxBytes={MAX_DOC_BYTES}
+              hint="JPG/JPEG/PNG · เห็นใบหน้าชัด แต่งกายสุภาพ พื้นหลังเรียบ ไม่สวมหมวก/แว่นกันแดด ไม่มีบุคคลอื่นในภาพ (ใช้เพื่อยืนยันตัวตนเท่านั้น)"
+              onChange={(f) => setPhoto(f[0] || null)}
+            />
             <FileUpload label="41. Resume / ประวัติส่วนตัว" required accept=".pdf,.doc,.docx" maxBytes={MAX_10MB} hint="PDF, DOC หรือ DOCX" onChange={(f) => setResume(f[0] || null)} />
             <FileUpload label="42. Transcript / ผลการศึกษาล่าสุด" required accept=".pdf,.jpg,.jpeg,.png" maxBytes={MAX_10MB} hint="PDF, JPG หรือ PNG" onChange={(f) => setTranscript(f[0] || null)} />
             <FileUpload label="43. หนังสือขอความอนุเคราะห์ฝึกงาน/สหกิจ" accept=".pdf,.jpg,.jpeg,.png" maxBytes={MAX_10MB} hint="PDF, JPG หรือ PNG · ส่งภายหลังได้ถ้ายังไม่ออกเอกสาร" onChange={(f) => setCoopLetter(f[0] || null)} />

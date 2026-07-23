@@ -15,6 +15,26 @@ function getCandidate(candidateId) {
   return { ok: true, candidate: rowToCandidate(row), applications: apps };
 }
 
+/**
+ * getCandidatePhoto — คืนรูปถ่ายผู้สมัครเป็น base64 (สำหรับหน้า Admin แสดงรูป)
+ * ไฟล์อยู่ใน Shared Drive (ไม่เปิดสาธารณะ) จึงส่งเป็น base64 ผ่าน endpoint ที่ต้องมี ADMIN_TOKEN
+ * เพื่อความเป็นส่วนตัวตาม PDPA
+ */
+function getCandidatePhoto(candidateId) {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const row = findRow(ss.getSheetByName(TAB.CAND), CAND.candidateId, candidateId);
+  if (!row) return { ok: false, error: 'not_found' };
+  const form = safeParse(row[CAND.applicationFormJson - 1], {});
+  const photo = form && form._files && form._files.photo;
+  if (!photo || !photo.id) return { ok: false, error: 'no_photo' };
+  try {
+    const blob = DriveApp.getFileById(photo.id).getBlob();
+    return { ok: true, mimeType: blob.getContentType(), dataBase64: Utilities.base64Encode(blob.getBytes()) };
+  } catch (err) {
+    return { ok: false, error: String(err) };
+  }
+}
+
 /** listCandidates — รายการผู้สมัครทั้งหมด + สถานะใบสมัครล่าสุด (สำหรับ Dashboard) */
 function listCandidates() {
   const ss = SpreadsheetApp.openById(SHEET_ID);

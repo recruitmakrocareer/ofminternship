@@ -80,6 +80,7 @@ function doGet(e) {
     if (p.action === 'programs') return json({ ok: true, programs: listPrograms() });
     if (p.action === 'track') return json(handleTrack(p.trackingCode, p.email));
     if (p.action === 'candidate' && p.adminToken === ADMIN_TOKEN) return json(getCandidate(p.candidateId));
+    if (p.action === 'photo' && p.adminToken === ADMIN_TOKEN) return json(getCandidatePhoto(p.candidateId));
     if (p.action === 'list' && p.adminToken === ADMIN_TOKEN) return json(listCandidates());
     return json({ ok: false, error: 'unknown_action' });
   } catch (err) {

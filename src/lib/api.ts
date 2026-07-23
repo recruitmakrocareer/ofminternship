@@ -46,6 +46,7 @@ export interface ApplyPayload {
   };
   consent: { accepted: boolean; version: string };
   files: {
+    photo?: EncodedFile;
     resume?: EncodedFile;
     transcript?: EncodedFile;
     coopLetter?: EncodedFile;
@@ -210,4 +211,19 @@ export async function adminUpdateStatus(
 
 export async function adminRetryScreen(adminToken: string, candidateId: string) {
   return postAction({ adminToken, action: 'retryScreen', payload: { candidateId } });
+}
+
+// ดึงรูปถ่ายผู้สมัครเป็น base64 (ไฟล์อยู่ใน Shared Drive ไม่เปิดสาธารณะ) แล้วประกอบเป็น data URI
+export async function adminGetPhoto(
+  adminToken: string,
+  candidateId: string,
+): Promise<{ ok: boolean; mimeType?: string; dataBase64?: string; error?: string }> {
+  const res = await fetch(
+    APPS_SCRIPT_URL +
+      '?action=photo&adminToken=' +
+      encodeURIComponent(adminToken) +
+      '&candidateId=' +
+      encodeURIComponent(candidateId),
+  );
+  return res.json();
 }
