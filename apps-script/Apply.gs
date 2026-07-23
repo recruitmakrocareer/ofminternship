@@ -19,13 +19,31 @@ function handleApply(payload) {
     const candidateId = 'C' + Utilities.getUuid().replace(/-/g, '').slice(0, 8);
     const applicationId = 'A' + Utilities.getUuid().replace(/-/g, '').slice(0, 8);
 
-    // 1) เซฟไฟล์ลง Drive (โฟลเดอร์ต่อผู้สมัคร = candidateId)
+    // 1) เซฟไฟล์ลง Drive — ตั้งชื่อโฟลเดอร์เป็น "วันที่สมัคร_ชื่อ นามสกุล_candidateId"
+    //    ต่อ candidateId ท้ายไว้กันชื่อซ้ำ (คนชื่อเดียวกันสมัครวันเดียวกัน) + ให้ map กลับไปหาแถวใน Sheet ได้
+    //    ถ้าไม่อยากได้ candidateId ท้ายชื่อ ให้ลบ ' + '_' + candidateId ' ออก
     const parent = DriveApp.getFolderById(DRIVE_FOLDER_ID);
-    const folder = parent.createFolder(candidateId);
+    const dateStr = Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    const safeName = (payload.personal.firstName + ' ' + payload.personal.lastName)
+      .replace(/[\/\\:*?"<>|]/g, '-') // ตัดอักขระที่ใช้ในชื่อไฟล์/โฟลเดอร์ไม่ได้
+      .replace(/\s+/g, ' ')
+      .trim();
+    const folderName = dateStr + '_' + safeName + '_' + candidateId;
+    const folder = parent.createFolder(folderName);
     const files = payload.files || {};
+    const photo = files.photo ? saveFile(folder, files.photo, 'photo') : {};
     const resume = files.resume ? saveFile(folder, files.resume, 'resume') : {};
     const transcript = files.transcript ? saveFile(folder, files.transcript, 'transcript') : {};
+    const coopLetter = files.coopLetter ? saveFile(folder, files.coopLetter, 'coop_letter') : {};
     const portfolio = (files.portfolio || []).map((f, i) => saveFile(folder, f, 'portfolio_' + i));
+
+    // แบบฟอร์มทางการฉบับเต็ม (49 คำถาม) เก็บเป็น JSON คอลัมน์เดียว (col AE = 31)
+    // ฝังลิงก์ไฟล์ทั้งหมดไว้ใน JSON ด้วย เผื่ออ้างอิงไฟล์ที่ไม่มีคอลัมน์เฉพาะ (รูปถ่าย/หนังสือขอความอนุเคราะห์)
+    const formData = payload.form || {};
+    formData._files = {
+      photo: photo, resume: resume, transcript: transcript,
+      coopLetter: coopLetter, portfolio: portfolio,
+    };
 
     // 2) Tracking code — ใช้ counter ใน Script Properties กัน tracking code ซ้ำ/ข้าม
     //    (แม่นกว่า getLastRow() ตอน concurrency สูง)
@@ -44,6 +62,7 @@ function handleApply(payload) {
       'pending', '', '', '', '', '', '',           // AI fields S..Y (เติมทีหลังใน runAiScreen)
       !!payload.consent.accepted, payload.consent.version || '', now,
       now, now,
+      JSON.stringify(formData),                     // AE (31) = applicationFormJson
     ]);
 
     // 4) เขียน Application row

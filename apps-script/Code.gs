@@ -35,7 +35,7 @@ const CAND = {
   transcriptFileId: 17, portfolioJson: 18, aiStatus: 19, aiMatchScore: 20,
   aiMatchedRolesJson: 21, aiRecommendedBranch: 22, aiSummary: 23, aiFlagsJson: 24,
   screenedAt: 25, consentAccepted: 26, consentVersion: 27, consentAt: 28,
-  createdAt: 29, updatedAt: 30,
+  createdAt: 29, updatedAt: 30, applicationFormJson: 31,
 };
 const APP = {
   applicationId: 1, candidateId: 2, programId: 3, trackingCode: 4,
@@ -80,6 +80,7 @@ function doGet(e) {
     if (p.action === 'programs') return json({ ok: true, programs: listPrograms() });
     if (p.action === 'track') return json(handleTrack(p.trackingCode, p.email));
     if (p.action === 'candidate' && p.adminToken === ADMIN_TOKEN) return json(getCandidate(p.candidateId));
+    if (p.action === 'photo' && p.adminToken === ADMIN_TOKEN) return json(getCandidatePhoto(p.candidateId));
     if (p.action === 'list' && p.adminToken === ADMIN_TOKEN) return json(listCandidates());
     return json({ ok: false, error: 'unknown_action' });
   } catch (err) {

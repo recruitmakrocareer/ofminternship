@@ -16,7 +16,7 @@ function setupSheets() {
       'resumeUrl', 'resumeFileId', 'transcriptUrl', 'transcriptFileId', 'portfolioJson',
       'aiStatus', 'aiMatchScore', 'aiMatchedRolesJson', 'aiRecommendedBranch', 'aiSummary',
       'aiFlagsJson', 'screenedAt', 'consentAccepted', 'consentVersion', 'consentAt',
-      'createdAt', 'updatedAt',
+      'createdAt', 'updatedAt', 'applicationFormJson',
     ],
     Applications: [
       'applicationId', 'candidateId', 'programId', 'trackingCode', 'positionApplied',
