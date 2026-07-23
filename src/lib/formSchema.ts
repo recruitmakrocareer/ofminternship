@@ -278,7 +278,6 @@ export const FIELD_LABELS: { key: keyof MakroFormData; label: string }[] = [
   { key: 'province1', label: 'จังหวัดลำดับ 1' },
   { key: 'province2', label: 'จังหวัดลำดับ 2' },
   { key: 'province3', label: 'จังหวัดลำดับ 3' },
-  { key: 'freshFoodRank', label: 'ความสนใจแผนกอาหารสด (เรียงลำดับ)' },
   { key: 'vehicle', label: 'พาหนะส่วนตัว' },
   { key: 'vehicleOther', label: 'พาหนะ (อื่น ๆ)' },
   { key: 'newsSources', label: 'ทราบข่าวจากช่องทาง' },

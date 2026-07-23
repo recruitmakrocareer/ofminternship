@@ -3,7 +3,7 @@ import { fetchPrograms, submitApplication, type Program, type ApplyPayload } fro
 import { fileToBase64 } from '../lib/fileToBase64';
 import { CONSENT_VERSION, MAX_DOC_BYTES, MAX_PORTFOLIO_BYTES } from '../config';
 import FileUpload from '../components/FileUpload';
-import { Field, RadioGroup, CheckboxGroup, RankSelect } from '../components/formFields';
+import { Field, RadioGroup, CheckboxGroup } from '../components/formFields';
 import {
   EMPTY_FORM,
   STEP_TITLES,
@@ -19,7 +19,6 @@ import {
   WORK_SHIFT,
   REGION_ABILITY,
   REGIONS,
-  FRESH_FOOD_DEPTS,
   VEHICLES,
   NEWS_SOURCES,
   MARKETING_CONSENT,
@@ -105,7 +104,6 @@ export default function Apply() {
       if (!d.regionAbility) return 'กรุณาตอบเรื่องการปฏิบัติงานต่างภูมิภาค';
       if (d.regions.length === 0) return 'กรุณาเลือกภูมิภาคที่สะดวกอย่างน้อย 1';
       if (!d.province1.trim()) return 'กรุณาระบุจังหวัดอย่างน้อย 1 จังหวัด';
-      if (d.freshFoodRank.length === 0) return 'กรุณาเลือก/เรียงลำดับความสนใจแผนกอาหารสด';
     }
     if (s === 5) {
       if (!photo) return 'กรุณาแนบรูปถ่ายหน้าตรง';
@@ -432,8 +430,7 @@ export default function Apply() {
                 <input placeholder="จังหวัดลำดับ 3" value={data.province3} onChange={(e) => upd('province3', e.target.value)} />
               </div>
             </Field>
-            <RankSelect label="39. ความสนใจในแผนกอาหารสด" required options={FRESH_FOOD_DEPTS} value={data.freshFoodRank} onChange={(v) => upd('freshFoodRank', v)} />
-            <RadioGroup label="40. พาหนะส่วนตัว" hint="ไม่บังคับ" options={VEHICLES} value={data.vehicle} onChange={(v) => upd('vehicle', v)} />
+            <RadioGroup label="39. พาหนะส่วนตัว" hint="ไม่บังคับ" options={VEHICLES} value={data.vehicle} onChange={(v) => upd('vehicle', v)} />
             {data.vehicle === 'อื่น ๆ' && (
               <Field label="โปรดระบุพาหนะ">
                 <input value={data.vehicleOther} onChange={(e) => upd('vehicleOther', e.target.value)} />

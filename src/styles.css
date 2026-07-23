@@ -603,12 +603,18 @@ textarea:focus {
   flex-wrap: wrap;
 }
 .candidate-photo {
-  width: 120px;
-  height: 150px;
+  width: 220px;
+  height: 280px;
   object-fit: cover;
   border-radius: 12px;
   border: 1px solid var(--line);
   background: #f1f2f4;
+}
+@media (max-width: 480px) {
+  .candidate-photo {
+    width: 160px;
+    height: 200px;
+  }
 }
 .candidate-photo-empty {
   display: grid;
