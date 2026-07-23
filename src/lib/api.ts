@@ -48,8 +48,11 @@ export interface ApplyPayload {
   files: {
     resume?: EncodedFile;
     transcript?: EncodedFile;
+    coopLetter?: EncodedFile;
     portfolio?: EncodedFile[];
   };
+  // แบบฟอร์มทางการฉบับเต็ม (49 คำถาม) — backend เก็บเป็น JSON คอลัมน์เดียว applicationFormJson
+  form?: Record<string, unknown>;
 }
 
 export interface StatusHistoryItem {
@@ -109,6 +112,7 @@ export interface Candidate {
   consentAt: string;
   createdAt: string;
   updatedAt: string;
+  applicationForm?: Record<string, any>;
   application?: Application | null;
 }
 

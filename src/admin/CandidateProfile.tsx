@@ -9,8 +9,16 @@ import {
   type Candidate,
 } from '../lib/api';
 import { statusLabel } from '../components/StatusStepper';
+import { FIELD_LABELS } from '../lib/formSchema';
 
 const TOKEN_KEY = 'mkr_admin_token';
+
+function renderFormValue(v: unknown): string {
+  if (v == null || v === '') return '—';
+  if (Array.isArray(v)) return v.length ? v.join(', ') : '—';
+  if (typeof v === 'boolean') return v ? 'ใช่' : 'ไม่';
+  return String(v);
+}
 
 // หน้าโปรไฟล์ผู้สมัคร (แอดมิน) — ข้อมูลครบ + ผล AI + ไฟล์ Drive + เปลี่ยนสถานะ
 export default function CandidateProfile() {
@@ -217,6 +225,26 @@ export default function CandidateProfile() {
           )}
         </div>
       </section>
+
+      {c.applicationForm && Object.keys(c.applicationForm).length > 0 && (
+        <section className="section">
+          <h2>รายละเอียดใบสมัคร (แบบฟอร์มเต็ม)</h2>
+          <div className="profile-block">
+            <dl className="kv">
+              {FIELD_LABELS.map(({ key, label }) => {
+                const v = c.applicationForm![key as string];
+                if (v == null || v === '' || (Array.isArray(v) && v.length === 0)) return null;
+                return (
+                  <div key={key as string} style={{ display: 'contents' }}>
+                    <dt>{label}</dt>
+                    <dd>{renderFormValue(v)}</dd>
+                  </div>
+                );
+              })}
+            </dl>
+          </div>
+        </section>
+      )}
 
       {app && (
         <section className="section">

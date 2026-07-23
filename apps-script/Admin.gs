@@ -107,6 +107,7 @@ function rowToCandidate(r) {
     consentAt: r[CAND.consentAt - 1],
     createdAt: r[CAND.createdAt - 1],
     updatedAt: r[CAND.updatedAt - 1],
+    applicationForm: safeParse(r[CAND.applicationFormJson - 1], {}),
   };
 }
 

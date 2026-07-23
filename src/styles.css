@@ -247,7 +247,8 @@ legend {
   color: var(--brand);
 }
 input,
-select {
+select,
+textarea {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--line);
@@ -255,10 +256,95 @@ select {
   font: inherit;
   background: #fff;
 }
+textarea {
+  resize: vertical;
+}
 input:focus,
-select:focus {
+select:focus,
+textarea:focus {
   outline: none;
   border-color: var(--brand);
+}
+.grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+.hint-eg {
+  font-style: italic;
+}
+
+/* ---- wizard ---- */
+.wizard-progress {
+  max-width: 760px;
+  margin: 8px auto 20px;
+}
+.wizard-bar {
+  height: 8px;
+  background: var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.wizard-bar-fill {
+  height: 100%;
+  background: var(--brand);
+  transition: width 0.3s ease;
+}
+.wizard-step-label {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.wizard-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+/* ---- option list (radio / checkbox / rank) ---- */
+.option-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+  background: #fff;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.option:hover {
+  border-color: var(--brand);
+}
+.option.selected {
+  border-color: var(--brand);
+  background: #fef2f2;
+}
+.option input {
+  width: auto;
+  margin: 0;
+}
+.rank-badge {
+  flex: 0 0 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--line);
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.rank-badge.on {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
 }
 .file-input {
   padding: 8px;

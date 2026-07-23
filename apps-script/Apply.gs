@@ -33,7 +33,13 @@ function handleApply(payload) {
     const files = payload.files || {};
     const resume = files.resume ? saveFile(folder, files.resume, 'resume') : {};
     const transcript = files.transcript ? saveFile(folder, files.transcript, 'transcript') : {};
+    const coopLetter = files.coopLetter ? saveFile(folder, files.coopLetter, 'coop_letter') : {};
     const portfolio = (files.portfolio || []).map((f, i) => saveFile(folder, f, 'portfolio_' + i));
+
+    // แบบฟอร์มทางการฉบับเต็ม (49 คำถาม) เก็บเป็น JSON คอลัมน์เดียว (col AE = 31)
+    // ฝังลิงก์ไฟล์ทั้งหมดไว้ใน JSON ด้วย เผื่ออ้างอิงไฟล์ที่ไม่มีคอลัมน์เฉพาะ (เช่น หนังสือขอความอนุเคราะห์)
+    const formData = payload.form || {};
+    formData._files = { resume: resume, transcript: transcript, coopLetter: coopLetter, portfolio: portfolio };
 
     // 2) Tracking code — ใช้ counter ใน Script Properties กัน tracking code ซ้ำ/ข้าม
     //    (แม่นกว่า getLastRow() ตอน concurrency สูง)
@@ -52,6 +58,7 @@ function handleApply(payload) {
       'pending', '', '', '', '', '', '',           // AI fields S..Y (เติมทีหลังใน runAiScreen)
       !!payload.consent.accepted, payload.consent.version || '', now,
       now, now,
+      JSON.stringify(formData),                     // AE (31) = applicationFormJson
     ]);
 
     // 4) เขียน Application row
