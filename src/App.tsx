@@ -3,6 +3,7 @@ import Landing from './pages/Landing';
 import ProgramJourney from './pages/ProgramJourney';
 import Apply from './pages/Apply';
 import TrackStatus from './pages/TrackStatus';
+import Privacy from './pages/Privacy';
 import Dashboard from './admin/Dashboard';
 import CandidateProfile from './admin/CandidateProfile';
 
@@ -67,6 +68,7 @@ export default function App() {
           <Route path="/journey" element={<ProgramJourney />} />
           <Route path="/apply" element={<Apply />} />
           <Route path="/track" element={<TrackStatus />} />
+          <Route path="/privacy" element={<Privacy />} />
         </Route>
         <Route path="/admin" element={<Dashboard />} />
         <Route path="/admin/candidate/:id" element={<CandidateProfile />} />

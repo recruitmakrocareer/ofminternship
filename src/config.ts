@@ -13,6 +13,9 @@ export const SUBMIT_TOKEN =
 
 export const LOOKER_STUDIO_URL = import.meta.env.VITE_LOOKER_STUDIO_URL || '';
 
+// Cloudflare Turnstile site key (spam protection) — ว่าง = ปิดวิดเจ็ต (backend ก็จะข้ามการตรวจ)
+export const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
+
 // ขนาดไฟล์สูงสุด (byte) — จำกัดที่ frontend เพราะ base64 ทำให้ payload โต ~33% (gotcha ข้อ 2)
 export const MAX_DOC_BYTES = 5 * 1024 * 1024; // Resume / Transcript ≤ 5MB
 export const MAX_PORTFOLIO_BYTES = 10 * 1024 * 1024; // portfolio ≤ 10MB

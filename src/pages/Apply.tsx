@@ -2,7 +2,18 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchPrograms, submitApplication, type ApplyPayload } from '../lib/api';
 import { fileToBase64 } from '../lib/fileToBase64';
-import { CONSENT_VERSION, MAX_DOC_BYTES } from '../config';
+import { CONSENT_VERSION, MAX_DOC_BYTES, TURNSTILE_SITE_KEY } from '../config';
+import Turnstile from '../components/Turnstile';
+
+const ERR_MSG: Record<string, string> = {
+  invalid_email: 'อีเมลไม่ถูกต้อง',
+  invalid_phone: 'เบอร์มือถือไม่ถูกต้อง (10 หลัก)',
+  invalid_gpa: 'GPAX ต้องอยู่ระหว่าง 0–4',
+  missing_name: 'กรุณากรอกชื่อ–นามสกุล',
+  missing_education: 'กรุณากรอกข้อมูลการศึกษา',
+  consent_required: 'กรุณายินยอม PDPA ก่อนส่ง',
+  captcha_failed: 'ยืนยันตัวตนไม่สำเร็จ กรุณาลองใหม่',
+};
 
 const DRAFT_KEY = 'ofm-draft';
 const STEP_NAMES = ['ข้อมูลส่วนตัว', 'การศึกษา', 'อาจารย์ผู้ประสานงาน', 'ทักษะ & กิจกรรม', 'ความพร้อม', 'เอกสาร', 'ช่องทางข่าว', 'ยืนยัน (PDPA)'];
@@ -50,6 +61,7 @@ export default function Apply() {
   const [photo, setPhoto] = useState<File | null>(null);
   const [resume, setResume] = useState<File | null>(null);
   const [transcript, setTranscript] = useState<File | null>(null);
+  const [captchaToken, setCaptchaToken] = useState('');
   const [programId, setProgramId] = useState('');
   const [programName, setProgramName] = useState('Order Fulfillment Internship');
   const [submitting, setSubmitting] = useState(false);
@@ -112,6 +124,7 @@ export default function Apply() {
     if (!resume) return { ok: false, step: 5, msg: 'กรุณาแนบ Resume' };
     if (!transcript) return { ok: false, step: 5, msg: 'กรุณาแนบ Transcript' };
     if (!consent) return { ok: false, step: 7, msg: 'กรุณายินยอมตามประกาศความเป็นส่วนตัว (PDPA)' };
+    if (TURNSTILE_SITE_KEY && !captchaToken) return { ok: false, step: 7, msg: 'กรุณายืนยันว่าไม่ใช่บอท' };
     return { ok: true };
   }
 
@@ -137,12 +150,18 @@ export default function Apply() {
           transcript: transcript ? await fileToBase64(transcript) : undefined,
         },
         form: { ...data },
+        turnstileToken: captchaToken || undefined,
       };
       const res = await submitApplication(payload);
       if (res.ok) {
         localStorage.removeItem(DRAFT_KEY);
         setResult({ trackingCode: res.trackingCode });
-      } else setError('ส่งใบสมัครไม่สำเร็จ: ' + (res.error || 'unknown'));
+      } else if (res.error === 'duplicate') {
+        setStep(7);
+        setError(`อีเมลนี้เคยสมัครโครงการนี้แล้ว${res.trackingCode ? ` (รหัสติดตาม: ${res.trackingCode})` : ''}`);
+      } else {
+        setError('ส่งใบสมัครไม่สำเร็จ: ' + (ERR_MSG[res.error] || res.error || 'unknown'));
+      }
     } catch (err) {
       setError('เกิดข้อผิดพลาด: ' + String(err));
     } finally {
@@ -409,9 +428,18 @@ export default function Apply() {
               </span>
               <span style={{ fontSize: 13, lineHeight: 1.55, color: '#EAF0FF' }}>
                 ข้าพเจ้ายินยอมให้บริษัทเก็บและใช้ข้อมูลส่วนบุคคลเพื่อการพิจารณารับสมัครฝึกงาน ตาม{' '}
-                <span style={{ color: '#3FC5F0', textDecoration: 'underline' }}>ประกาศความเป็นส่วนตัว (PDPA)</span>
+                <a
+                  href={`${import.meta.env.BASE_URL}#/privacy`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ textDecoration: 'underline' }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  ประกาศความเป็นส่วนตัว (PDPA)
+                </a>
               </span>
             </button>
+            <Turnstile onToken={setCaptchaToken} />
           </div>
         )}
 
@@ -430,7 +458,12 @@ export default function Apply() {
             ถัดไป →
           </button>
         ) : (
-          <button className="btn btn-red" style={{ flex: 1 }} onClick={handleSubmit} disabled={submitting || !consent}>
+          <button
+            className="btn btn-red"
+            style={{ flex: 1 }}
+            onClick={handleSubmit}
+            disabled={submitting || !consent || (!!TURNSTILE_SITE_KEY && !captchaToken)}
+          >
             {submitting ? 'กำลังส่ง…' : 'ส่งใบสมัคร ✓'}
           </button>
         )}
