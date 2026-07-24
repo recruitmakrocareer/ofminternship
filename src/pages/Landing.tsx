@@ -1,14 +1,4 @@
-import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-const POSTER = `${import.meta.env.BASE_URL}poster.png`;
-
-const SLIDES = [
-  { img: POSTER, ph: 'โปสเตอร์โครงการ' },
-  { img: '', ph: 'บรรยากาศการทำงานจริง' },
-  { img: '', ph: 'ทีม / สาขา Makro' },
-  { img: '', ph: 'กิจกรรมในโครงการ' },
-];
 
 const BRANCHES = [
   {
@@ -56,16 +46,22 @@ const BRANCHES = [
   },
 ];
 
+const ROUNDS = [
+  { n: 1, title: 'ต.ค. 69 – มี.ค. 70', sub: 'ระยะฝึก 16+ สัปดาห์' },
+  { n: 2, title: 'มิ.ย. 70 – ต.ค. 70', sub: 'ระยะฝึก 16+ สัปดาห์' },
+];
+
+const PERIOD = [
+  { title: 'ปิดรับสมัคร', date: '20 สิงหาคม 2569', bg: 'rgba(226,35,26,.15)', stroke: '#FF5A50', gold: false, icon: <><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" /></> },
+  { title: 'สัมภาษณ์', date: '21 สิงหาคม 2569', bg: 'rgba(63,197,240,.15)', stroke: '#3FC5F0', gold: false, icon: <><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /></> },
+  { title: 'เริ่มฝึกงาน', date: 'ตุลาคม 2569 เป็นต้นไป', bg: 'rgba(255,196,46,.15)', stroke: '#FFC42E', gold: true, icon: <><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></> },
+];
+
 const BENEFITS = ['ประสบการณ์ทำงานจริง', 'พัฒนาทักษะในสายอาชีพ', 'เรียนรู้จากผู้เชี่ยวชาญ', 'โอกาสร่วมงานกับแม็คโคร'];
 
 export default function Landing() {
   const nav = useNavigate();
-  const [slide, setSlide] = useState(0);
-
-  useEffect(() => {
-    const t = setInterval(() => setSlide((i) => (i + 1) % SLIDES.length), 2800);
-    return () => clearInterval(t);
-  }, []);
+  const logo = `${import.meta.env.BASE_URL}cpx-logo.jpg`;
 
   return (
     <div>
@@ -75,18 +71,65 @@ export default function Landing() {
         </div>
       </div>
 
-      {/* hero carousel */}
-      <div className="carousel">
-        <div className="car-frame">
-          {SLIDES.map((s, i) => (
-            <div key={i} className={`car-slide ${i === slide ? 'on' : ''}`}>
-              {s.img ? <img src={s.img} alt="" /> : <div className="car-ph">{s.ph}</div>}
+      {/* red hero */}
+      <div style={{ margin: '0 16px', background: 'linear-gradient(155deg,#E2231A,#B4160F)', borderRadius: 24, padding: '24px 22px', position: 'relative', overflow: 'hidden', boxShadow: '0 0 34px -10px rgba(226,35,26,.6)' }}>
+        <svg style={{ position: 'absolute', top: -18, right: -10, opacity: 0.28 }} width="110" height="110" viewBox="0 0 100 100" fill="none" stroke="#fff" strokeWidth="2.5">
+          <path d="M50 4l40 23v46L50 96 10 73V27z" />
+        </svg>
+        <span style={{ display: 'inline-block', background: 'rgba(255,255,255,.18)', color: '#fff', font: "700 11px 'Anuphan'", letterSpacing: '0.6px', padding: '5px 12px', borderRadius: 999, marginBottom: 14, position: 'relative' }}>
+          รับสมัคร 2026 · เปิดแล้ว
+        </span>
+        <h1 style={{ font: "800 34px 'Anuphan'", lineHeight: 0.98, color: '#fff', margin: '0 0 12px', letterSpacing: '-0.5px', position: 'relative' }}>
+          ORDER
+          <br />
+          FULFILLMENT
+        </h1>
+        <div style={{ display: 'inline-block', background: '#05122B', border: '1px solid rgba(63,197,240,.4)', color: '#fff', font: "700 14px 'Anuphan'", letterSpacing: '0.5px', padding: '6px 14px', borderRadius: 10, position: 'relative' }}>
+          INTERNSHIP PROGRAM
+        </div>
+      </div>
+
+      {/* program info */}
+      <div style={{ padding: '24px 20px 4px' }}>
+        <p className="eyebrow">เกี่ยวกับโครงการ</p>
+        <h2 className="section-title" style={{ marginBottom: 10 }}>ร่วมงานและเรียนรู้กับแม็คโคร</h2>
+        <p style={{ fontSize: 14, color: '#C4CEE6', lineHeight: 1.7, margin: 0 }}>
+          ฝึกงานจริงกับทีม Operations ของแม็คโคร ปฏิบัติงานที่สาขา เรียนรู้งาน Retail Operations ครบวงจร มีพี่เลี้ยงดูแล พร้อมเบี้ยเลี้ยงรายเดือนและโอกาสได้งานต่อหลังจบโครงการ
+        </p>
+      </div>
+
+      {/* rounds */}
+      <div style={{ padding: '22px 20px 4px' }}>
+        <h2 style={{ font: "800 19px 'Anuphan'", margin: '0 0 12px', color: '#fff' }}>รอบการฝึกงาน</h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {ROUNDS.map((r) => (
+            <div key={r.n} style={{ display: 'flex', gap: 14, alignItems: 'center', background: '#12244F', border: '1px solid rgba(63,197,240,.22)', borderRadius: 16, padding: '15px 16px' }}>
+              <span style={{ flex: '0 0 44px', height: 44, background: 'linear-gradient(150deg,#E2231A,#B4160F)', color: '#fff', borderRadius: 12, display: 'grid', placeItems: 'center', font: "800 20px 'Anuphan'" }}>{r.n}</span>
+              <div>
+                <div style={{ font: "700 16px 'Anuphan'", color: '#fff' }}>{r.title}</div>
+                <div style={{ fontSize: 12.5, color: '#A9B6D4' }}>{r.sub}</div>
+              </div>
             </div>
           ))}
         </div>
-        <div className="car-dots">
-          {SLIDES.map((_, i) => (
-            <span key={i} className={`dot ${i === slide ? 'on' : ''}`} />
+      </div>
+
+      {/* recruitment period */}
+      <div style={{ padding: '22px 20px 4px' }}>
+        <h2 style={{ font: "800 19px 'Anuphan'", margin: '0 0 12px', color: '#fff' }}>ระยะเวลารับสมัคร</h2>
+        <div style={{ background: 'linear-gradient(150deg,#12306A,#0B1E47)', border: '1px solid rgba(63,197,240,.3)', borderRadius: 18, padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {PERIOD.map((p) => (
+            <div key={p.title} style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+              <span style={{ flex: '0 0 40px', height: 40, background: p.bg, borderRadius: 11, display: 'grid', placeItems: 'center' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={p.stroke} strokeWidth="2">
+                  {p.icon}
+                </svg>
+              </span>
+              <div>
+                <div style={{ font: "700 15px 'Anuphan'", color: p.gold ? '#FFD873' : '#fff' }}>{p.title}</div>
+                <div style={{ fontSize: 13, color: '#A9B6D4' }}>{p.date}</div>
+              </div>
+            </div>
           ))}
         </div>
       </div>
@@ -156,6 +199,13 @@ export default function Landing() {
         <button className="btn btn-ghost" onClick={() => nav('/journey')}>
           ดูเส้นทางโครงการ
         </button>
+      </div>
+
+      {/* logo (mobile in-flow) */}
+      <div style={{ padding: '8px 20px 4px' }}>
+        <div className="logo-card">
+          <img src={logo} alt="CP AXTRA · makro · Lotus's" />
+        </div>
       </div>
     </div>
   );
