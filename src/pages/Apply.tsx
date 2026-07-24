@@ -1,187 +1,148 @@
-import { useEffect, useState } from 'react';
-import { fetchPrograms, submitApplication, type Program, type ApplyPayload } from '../lib/api';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { fetchPrograms, submitApplication, type ApplyPayload } from '../lib/api';
 import { fileToBase64 } from '../lib/fileToBase64';
-import { CONSENT_VERSION, MAX_DOC_BYTES, MAX_PORTFOLIO_BYTES } from '../config';
-import FileUpload from '../components/FileUpload';
-import { Field, RadioGroup, CheckboxGroup, RankSelect } from '../components/formFields';
-import {
-  EMPTY_FORM,
-  STEP_TITLES,
-  TITLES,
-  GENDERS,
-  MILITARY_STATUS,
-  ADDRESS_MATCH,
-  EDU_LEVELS,
-  YEAR_LEVELS,
-  APPLICATION_TYPES,
-  COMPUTER_SKILLS,
-  WORK_6DAYS,
-  WORK_SHIFT,
-  REGION_ABILITY,
-  REGIONS,
-  FRESH_FOOD_DEPTS,
-  VEHICLES,
-  NEWS_SOURCES,
-  MARKETING_CONSENT,
-  type MakroFormData,
-} from '../lib/formSchema';
+import { CONSENT_VERSION, MAX_DOC_BYTES } from '../config';
 
-const MAX_10MB = 10 * 1024 * 1024;
+const DRAFT_KEY = 'ofm-draft';
+const STEP_NAMES = ['ข้อมูลส่วนตัว', 'การศึกษา', 'อาจารย์ผู้ประสานงาน', 'ทักษะ & กิจกรรม', 'ความพร้อม', 'เอกสาร', 'ช่องทางข่าว', 'ยืนยัน (PDPA)'];
+const SKILLS = ['Excel / Data', 'สื่อสาร', 'ทำงานเป็นทีม', 'ภาษาอังกฤษ', 'แก้ปัญหา', 'คลังสินค้า'];
+const SOURCES = ['Facebook / Instagram', 'TikTok', 'ประกาศจากมหาวิทยาลัย', 'เพื่อน / รุ่นพี่แนะนำ', 'งาน Roadshow / บูธ'];
+const PREFIXES = ['นาย', 'นางสาว', 'อื่น ๆ'];
 
-// หน้าฟอร์มสมัคร — wizard 8 ขั้นตามแบบฟอร์มทางการ Makro Internship & Co-op
+interface FormData {
+  prefix: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string;
+  university: string;
+  faculty: string;
+  major: string;
+  year: string;
+  gpa: string;
+  coordName: string;
+  coordPhone: string;
+  coordEmail: string;
+  skills: string[];
+  activities: string;
+  availableFrom: string;
+  preferBranch: string;
+  vehicle: boolean;
+  sources: string[];
+}
+
+const EMPTY: FormData = {
+  prefix: '', firstName: '', lastName: '', phone: '', email: '',
+  university: '', faculty: '', major: '', year: '', gpa: '',
+  coordName: '', coordPhone: '', coordEmail: '',
+  skills: [], activities: '', availableFrom: '', preferBranch: '', vehicle: false, sources: [],
+};
+
+const phoneOk = (v: string) => /^0\d{9}$/.test(v);
+const emailOk = (v: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v);
+
 export default function Apply() {
-  const [programs, setPrograms] = useState<Program[]>([]);
-  const [data, setData] = useState<MakroFormData>(EMPTY_FORM);
+  const nav = useNavigate();
+  const [data, setData] = useState<FormData>(EMPTY);
+  const [step, setStep] = useState(0);
+  const [consent, setConsent] = useState(false);
   const [photo, setPhoto] = useState<File | null>(null);
   const [resume, setResume] = useState<File | null>(null);
   const [transcript, setTranscript] = useState<File | null>(null);
-  const [coopLetter, setCoopLetter] = useState<File | null>(null);
-  const [portfolio, setPortfolio] = useState<File[]>([]);
-  const [step, setStep] = useState(0);
+  const [programId, setProgramId] = useState('');
+  const [programName, setProgramName] = useState('Order Fulfillment Internship');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<{ trackingCode: string } | null>(null);
 
+  // restore draft
   useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(DRAFT_KEY) || '{}');
+      if (saved && typeof saved === 'object') setData((d) => ({ ...d, ...saved }));
+    } catch {
+      /* ignore */
+    }
     fetchPrograms().then((r) => {
-      if (r.ok && r.programs) {
-        setPrograms(r.programs);
-        if (r.programs.length === 1) upd('programId', r.programs[0].programId);
+      if (r.ok && r.programs && r.programs.length) {
+        setProgramId(r.programs[0].programId);
+        setProgramName(r.programs[0].name || 'Order Fulfillment Internship');
       }
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function upd<K extends keyof MakroFormData>(key: K, value: MakroFormData[K]) {
-    setData((d) => ({ ...d, [key]: value }));
+  function upd<K extends keyof FormData>(key: K, value: FormData[K]) {
+    setData((d) => {
+      const nextData = { ...d, [key]: value };
+      try {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(nextData));
+      } catch {
+        /* ignore */
+      }
+      return nextData;
+    });
+  }
+  const onInput = (key: keyof FormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => upd(key, e.target.value as never);
+  const toggleArr = (key: 'skills' | 'sources', v: string) => {
+    const arr = data[key];
+    upd(key, (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]) as never);
+  };
+
+  function pickFile(setter: (f: File | null) => void) {
+    return (e: React.ChangeEvent<HTMLInputElement>) => {
+      const f = e.target.files?.[0] || null;
+      if (f && f.size > MAX_DOC_BYTES) {
+        setError(`ไฟล์ "${f.name}" ใหญ่เกิน 5MB`);
+        e.target.value = '';
+        return;
+      }
+      setError('');
+      setter(f);
+    };
   }
 
-  const isMale = data.gender === 'ชาย';
-
-  // ตรวจความครบของแต่ละ step — คืน string error หรือ null
-  function validateStep(s: number): string | null {
-    const d = data;
-    if (s === 0) {
-      if (!d.programId) return 'กรุณาเลือกโครงการ';
-      if (!d.title || (d.title === 'อื่น ๆ' && !d.titleOther.trim())) return 'กรุณาเลือกคำนำหน้าชื่อ';
-      if (!d.firstNameTh.trim() || !d.lastNameTh.trim()) return 'กรุณากรอกชื่อ–นามสกุล (ภาษาไทย)';
-      if (!d.firstNameEn.trim() || !d.lastNameEn.trim()) return 'กรุณากรอกชื่อ–นามสกุล (ภาษาอังกฤษ)';
-      if (!d.nickname.trim()) return 'กรุณากรอกชื่อเล่น';
-      if (!d.dob) return 'กรุณาระบุวันเดือนปีเกิด';
-      if (!d.gender) return 'กรุณาเลือกเพศ';
-      if (isMale && !d.militaryStatus) return 'กรุณาเลือกสถานะทางทหาร';
-      if (!/^\d{10}$/.test(d.phone)) return 'หมายเลขโทรศัพท์ต้องเป็นตัวเลข 10 หลัก';
-      if (!d.lineId.trim()) return 'กรุณากรอก Line ID';
-      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(d.email)) return 'อีเมลไม่ถูกต้อง';
-      if (d.nationalId && !/^\d{13}$/.test(d.nationalId)) return 'เลขบัตรประชาชนต้องเป็นตัวเลข 13 หลัก';
-      if (!d.idCardAddress.trim()) return 'กรุณากรอกที่อยู่ตามบัตรประชาชน';
-      if (!d.currentAddressMatch) return 'กรุณาระบุว่าที่อยู่ปัจจุบันตรงกับบัตรหรือไม่';
-      if (d.currentAddressMatch === 'ไม่ตรงกัน' && !d.currentAddress.trim()) return 'กรุณากรอกที่อยู่ปัจจุบัน';
-    }
-    if (s === 1) {
-      if (!d.eduLevel) return 'กรุณาเลือกระดับการศึกษา';
-      if (!d.institution.trim()) return 'กรุณากรอกชื่อสถาบันการศึกษา';
-      if (!d.faculty.trim()) return 'กรุณากรอกคณะ/วิทยาลัย';
-      if (!d.major.trim()) return 'กรุณากรอกสาขาวิชา';
-      if (!d.yearLevel) return 'กรุณาเลือกชั้นปี';
-      if (!d.gpax || Number(d.gpax) < 0 || Number(d.gpax) > 4) return 'GPAX ต้องอยู่ระหว่าง 0.00–4.00';
-      if (!d.gradMonthYear) return 'กรุณาระบุวันที่คาดว่าจะสำเร็จการศึกษา';
-      if (!d.applicationType) return 'กรุณาเลือกประเภทการสมัคร';
-      if (!d.availableStart || !d.availableEnd) return 'กรุณาระบุช่วงเวลาที่สามารถปฏิบัติงานได้';
-    }
-    if (s === 2) {
-      if (!d.coordinatorName.trim()) return 'กรุณากรอกชื่ออาจารย์/เจ้าหน้าที่ผู้ประสานงาน';
-      if (!/^\d{9,10}$/.test(d.coordinatorPhone)) return 'เบอร์ผู้ประสานงานไม่ถูกต้อง';
-      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(d.coordinatorEmail)) return 'อีเมลผู้ประสานงานไม่ถูกต้อง';
-    }
-    if (s === 3) {
-      if (!d.activities.trim()) return 'กรุณากรอกกิจกรรม/ประสบการณ์';
-      if (!d.motivation.trim()) return 'กรุณาแนะนำตัวและอธิบายเหตุผลที่สนใจ';
-    }
-    if (s === 4) {
-      if (!d.work6days) return 'กรุณาตอบเรื่องการปฏิบัติงาน 6 วัน/สัปดาห์';
-      if (!d.workShift) return 'กรุณาตอบเรื่องการปฏิบัติงานเป็นกะ';
-      if (d.workShift === 'มีข้อจำกัดด้านเวลา' && !d.workShiftLimit.trim()) return 'กรุณาระบุข้อจำกัดด้านเวลา';
-      if (!d.regionAbility) return 'กรุณาตอบเรื่องการปฏิบัติงานต่างภูมิภาค';
-      if (d.regions.length === 0) return 'กรุณาเลือกภูมิภาคที่สะดวกอย่างน้อย 1';
-      if (!d.province1.trim()) return 'กรุณาระบุจังหวัดอย่างน้อย 1 จังหวัด';
-      if (d.freshFoodRank.length === 0) return 'กรุณาเลือก/เรียงลำดับความสนใจแผนกอาหารสด';
-    }
-    if (s === 5) {
-      if (!photo) return 'กรุณาแนบรูปถ่ายหน้าตรง';
-      if (!resume) return 'กรุณาแนบ Resume';
-      if (!transcript) return 'กรุณาแนบ Transcript';
-    }
-    if (s === 6) {
-      if (d.newsSources.length === 0) return 'กรุณาเลือกช่องทางที่ทราบข่าว';
-    }
-    if (s === 7) {
-      if (!d.certifyAccuracy) return 'กรุณายืนยันความถูกต้องของข้อมูล';
-      if (!d.acknowledgePrivacy) return 'กรุณารับทราบประกาศความเป็นส่วนตัว';
-    }
-    return null;
-  }
-
-  function next() {
-    const err = validateStep(step);
-    if (err) {
-      setError(err);
-      return;
-    }
-    setError('');
-    setStep((s) => Math.min(s + 1, STEP_TITLES.length - 1));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-  function back() {
-    setError('');
-    setStep((s) => Math.max(s - 1, 0));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  function validateForSubmit(): { ok: boolean; step?: number; msg?: string } {
+    if (!programId) return { ok: false, step: 0, msg: 'ยังไม่มีโครงการเปิดรับ' };
+    if (!data.firstName.trim() || !data.lastName.trim()) return { ok: false, step: 0, msg: 'กรุณากรอกชื่อ–นามสกุล' };
+    if (!phoneOk(data.phone)) return { ok: false, step: 0, msg: 'เบอร์มือถือไม่ถูกต้อง (10 หลัก)' };
+    if (!emailOk(data.email)) return { ok: false, step: 0, msg: 'อีเมลไม่ถูกต้อง' };
+    if (!data.university.trim()) return { ok: false, step: 1, msg: 'กรุณากรอกมหาวิทยาลัย' };
+    if (!photo) return { ok: false, step: 5, msg: 'กรุณาแนบรูปถ่ายหน้าตรง' };
+    if (!resume) return { ok: false, step: 5, msg: 'กรุณาแนบ Resume' };
+    if (!transcript) return { ok: false, step: 5, msg: 'กรุณาแนบ Transcript' };
+    if (!consent) return { ok: false, step: 7, msg: 'กรุณายินยอมตามประกาศความเป็นส่วนตัว (PDPA)' };
+    return { ok: true };
   }
 
   async function handleSubmit() {
-    // ตรวจทุก step ก่อนส่ง
-    for (let s = 0; s <= 7; s++) {
-      const err = validateStep(s);
-      if (err) {
-        setStep(s);
-        setError(err);
-        return;
-      }
+    const v = validateForSubmit();
+    if (!v.ok) {
+      setStep(v.step!);
+      setError(v.msg!);
+      return;
     }
     setSubmitting(true);
     setError('');
     try {
       const payload: ApplyPayload = {
-        programId: data.programId,
-        positionApplied: data.applicationType,
-        personal: {
-          firstName: data.firstNameTh,
-          lastName: data.lastNameTh,
-          email: data.email,
-          phone: data.phone,
-          lineUserId: data.lineId,
-        },
-        education: {
-          university: data.institution,
-          faculty: data.faculty,
-          major: data.major,
-          gpa: data.gpax,
-          yearLevel: data.yearLevel,
-          expectedGradYear: data.gradMonthYear,
-        },
-        consent: { accepted: data.certifyAccuracy && data.acknowledgePrivacy, version: CONSENT_VERSION },
+        programId,
+        positionApplied: programName,
+        personal: { firstName: data.firstName, lastName: data.lastName, email: data.email, phone: data.phone, lineUserId: '' },
+        education: { university: data.university, faculty: data.faculty, major: data.major, gpa: data.gpa, yearLevel: data.year, expectedGradYear: '' },
+        consent: { accepted: consent, version: CONSENT_VERSION },
         files: {
           photo: photo ? await fileToBase64(photo) : undefined,
           resume: resume ? await fileToBase64(resume) : undefined,
           transcript: transcript ? await fileToBase64(transcript) : undefined,
-          coopLetter: coopLetter ? await fileToBase64(coopLetter) : undefined,
-          portfolio: portfolio.length ? await Promise.all(portfolio.map(fileToBase64)) : undefined,
         },
-        form: { ...data }, // เก็บคำตอบทั้งหมดเป็น JSON
+        form: { ...data },
       };
       const res = await submitApplication(payload);
-      if (res.ok) setResult({ trackingCode: res.trackingCode });
-      else setError('ส่งใบสมัครไม่สำเร็จ: ' + (res.error || 'unknown'));
+      if (res.ok) {
+        localStorage.removeItem(DRAFT_KEY);
+        setResult({ trackingCode: res.trackingCode });
+      } else setError('ส่งใบสมัครไม่สำเร็จ: ' + (res.error || 'unknown'));
     } catch (err) {
       setError('เกิดข้อผิดพลาด: ' + String(err));
     } finally {
@@ -189,342 +150,290 @@ export default function Apply() {
     }
   }
 
+  function next() {
+    setError('');
+    setStep((s) => Math.min(7, s + 1));
+    window.scrollTo({ top: 0 });
+  }
+  function back() {
+    setError('');
+    if (step > 0) setStep((s) => s - 1);
+    else nav('/');
+    window.scrollTo({ top: 0 });
+  }
+
   if (result) {
     return (
-      <div className="page">
-        <div className="success-card">
-          <h1>✅ ส่งใบสมัครสำเร็จ</h1>
-          <p>บริษัทได้รับใบสมัครของท่านเรียบร้อยแล้ว รหัสติดตามคือ</p>
-          <p className="tracking-code">{result.trackingCode}</p>
-          <p className="muted">
-            ทีม Talent Acquisition จะติดต่อผู้ที่ผ่านการพิจารณาเบื้องต้นผ่านโทรศัพท์ / Email / Line ID ที่ระบุไว้
-            กรุณาบันทึกรหัสนี้เพื่อติดตามสถานะ
+      <div className="apply-wrap">
+        <div className="success-wrap">
+          <h1 style={{ color: '#fff' }}>✅ ส่งใบสมัครสำเร็จ</h1>
+          <p className="muted">บริษัทได้รับใบสมัครของคุณแล้ว รหัสติดตามคือ</p>
+          <div className="tracking-code">{result.trackingCode}</div>
+          <p className="muted" style={{ fontSize: 13 }}>
+            ทีม Talent Acquisition จะติดต่อผู้ที่ผ่านการพิจารณาเบื้องต้น กรุณาบันทึกรหัสนี้เพื่อติดตามสถานะ
           </p>
-          <a className="btn btn-primary" href="#/track">
+          <button className="btn btn-red btn-block" style={{ marginTop: 18 }} onClick={() => nav('/track')}>
             ไปหน้าติดตามใบสมัคร
-          </a>
+          </button>
         </div>
       </div>
     );
   }
 
-  const pct = Math.round(((step + 1) / STEP_TITLES.length) * 100);
-
   return (
-    <div className="page">
-      <section className="hero hero-sm">
-        <h1>สมัครเข้าร่วมโครงการ</h1>
-        <p className="lead">Makro Internship &amp; Cooperative Education Program</p>
-      </section>
-
-      {/* progress */}
-      <div className="wizard-progress">
-        <div className="wizard-bar">
-          <div className="wizard-bar-fill" style={{ width: `${pct}%` }} />
+    <div className="apply-wrap">
+      {/* progress header */}
+      <div className="apply-header">
+        <div className="apply-header-top">
+          <button className="apply-back" onClick={back}>
+            ← สมัครฝึกงาน
+          </button>
+          <span className="save-chip">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#FFC42E" strokeWidth="3">
+              <path d="M20 6L9 17l-5-5" />
+            </svg>
+            บันทึกร่างแล้ว
+          </span>
         </div>
-        <p className="wizard-step-label">
-          ส่วนที่ {step + 1}/{STEP_TITLES.length}: <strong>{STEP_TITLES[step]}</strong>
-        </p>
+        <div className="seg-bar">
+          {STEP_NAMES.map((_, i) => (
+            <span key={i} className={`seg ${i <= step ? 'on' : ''}`} />
+          ))}
+        </div>
+        <div className="step-counter">
+          ขั้นที่ {step + 1} จาก 8 · {STEP_NAMES[step]}
+        </div>
       </div>
 
-      <div className="form">
-        {/* ===== STEP 0: ข้อมูลส่วนบุคคล ===== */}
+      {/* body */}
+      <div className="apply-body scroll">
         {step === 0 && (
-          <fieldset>
-            <legend>ส่วนที่ 1 · ข้อมูลส่วนบุคคล</legend>
-
-            <Field label="โครงการที่สมัคร" required>
-              <select value={data.programId} onChange={(e) => upd('programId', e.target.value)}>
-                <option value="">— เลือกโครงการ —</option>
-                {programs.map((p) => (
-                  <option key={p.programId} value={p.programId}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-
-            <RadioGroup label="1. คำนำหน้าชื่อ" required options={TITLES} value={data.title} onChange={(v) => upd('title', v)} />
-            {data.title === 'อื่น ๆ' && (
-              <Field label="โปรดระบุคำนำหน้า" required>
-                <input value={data.titleOther} onChange={(e) => upd('titleOther', e.target.value)} />
-              </Field>
-            )}
-
-            <div className="grid-2">
-              <Field label="2. ชื่อ (ภาษาไทย)" required example="ธนวัฒน์">
-                <input value={data.firstNameTh} onChange={(e) => upd('firstNameTh', e.target.value)} />
-              </Field>
-              <Field label="นามสกุล (ภาษาไทย)" required example="ใจดี">
-                <input value={data.lastNameTh} onChange={(e) => upd('lastNameTh', e.target.value)} />
-              </Field>
-              <Field label="3. ชื่อ (ภาษาอังกฤษ)" required example="Thanawat">
-                <input value={data.firstNameEn} onChange={(e) => upd('firstNameEn', e.target.value)} />
-              </Field>
-              <Field label="นามสกุล (ภาษาอังกฤษ)" required example="Jaidee">
-                <input value={data.lastNameEn} onChange={(e) => upd('lastNameEn', e.target.value)} />
-              </Field>
-              <Field label="4. ชื่อเล่น" required example="แบงค์">
-                <input value={data.nickname} onChange={(e) => upd('nickname', e.target.value)} />
-              </Field>
-              <Field label="5. วันเดือนปีเกิด" required>
-                <input type="date" value={data.dob} onChange={(e) => upd('dob', e.target.value)} />
-              </Field>
+          <div>
+            <h2 className="step-title">มาทำความรู้จักกันก่อน 👋</h2>
+            <p className="step-sub">ใช้เวลาประมาณ 2 นาที · ข้อมูลจะถูกบันทึกอัตโนมัติ</p>
+            <label className="lbl">โครงการที่สมัคร</label>
+            <div className="fld" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+              <span>{programName}</span>
             </div>
-
-            <RadioGroup label="6. เพศ" required options={GENDERS} value={data.gender} onChange={(v) => upd('gender', v)} />
-
-            {isMale && (
-              <RadioGroup
-                label="7. สถานะทางทหาร"
-                required
-                hint="สำหรับผู้สมัครเพศชาย"
-                options={MILITARY_STATUS}
-                value={data.militaryStatus}
-                onChange={(v) => upd('militaryStatus', v)}
-              />
-            )}
-
-            <div className="grid-2">
-              <Field label="8. หมายเลขโทรศัพท์มือถือ" required hint="ตัวเลข 10 หลัก ไม่ต้องมีขีด" example="0812345678">
-                <input inputMode="numeric" value={data.phone} onChange={(e) => upd('phone', e.target.value.replace(/\D/g, ''))} maxLength={10} />
-              </Field>
-              <Field label="9. Line ID" required example="thanawat123">
-                <input value={data.lineId} onChange={(e) => upd('lineId', e.target.value)} />
-              </Field>
-              <Field label="10. Email" required example="thanawat.jaidee@email.com">
-                <input type="email" value={data.email} onChange={(e) => upd('email', e.target.value)} />
-              </Field>
-              <Field label="11. เลขบัตรประชาชน" hint="ไม่บังคับในขั้นนี้ · ตัวเลข 13 หลัก" example="1234567890123">
-                <input inputMode="numeric" value={data.nationalId} onChange={(e) => upd('nationalId', e.target.value.replace(/\D/g, ''))} maxLength={13} />
-              </Field>
-              <Field label="12. น้ำหนัก (กก.)" hint="ไม่บังคับ">
-                <input inputMode="numeric" value={data.weight} onChange={(e) => upd('weight', e.target.value)} />
-              </Field>
-              <Field label="13. ส่วนสูง (ซม.)" hint="ไม่บังคับ">
-                <input inputMode="numeric" value={data.height} onChange={(e) => upd('height', e.target.value)} />
-              </Field>
+            <label className="lbl">คำนำหน้า</label>
+            <div className="prefix-row" style={{ marginBottom: 18 }}>
+              {PREFIXES.map((p) => (
+                <button key={p} className={`prefix-btn ${data.prefix === p ? 'on' : ''}`} onClick={() => upd('prefix', p)}>
+                  {p}
+                </button>
+              ))}
             </div>
-
-            <Field label="14. ที่อยู่ตามบัตรประชาชน" required hint="บ้านเลขที่ หมู่ ซอย ถนน ตำบล/แขวง อำเภอ/เขต จังหวัด รหัสไปรษณีย์">
-              <textarea rows={3} value={data.idCardAddress} onChange={(e) => upd('idCardAddress', e.target.value)} />
-            </Field>
-
-            <RadioGroup
-              label="15. ที่อยู่ปัจจุบันตรงกับบัตรประชาชนหรือไม่"
-              required
-              options={ADDRESS_MATCH}
-              value={data.currentAddressMatch}
-              onChange={(v) => upd('currentAddressMatch', v)}
-            />
-            {data.currentAddressMatch === 'ไม่ตรงกัน' && (
-              <Field label="กรุณาระบุที่อยู่ปัจจุบัน" required>
-                <textarea rows={3} value={data.currentAddress} onChange={(e) => upd('currentAddress', e.target.value)} />
-              </Field>
-            )}
-          </fieldset>
-        )}
-
-        {/* ===== STEP 1: การศึกษา ===== */}
-        {step === 1 && (
-          <fieldset>
-            <legend>ส่วนที่ 2 · ข้อมูลการศึกษา</legend>
-            <RadioGroup label="16. ระดับการศึกษาปัจจุบัน" required options={EDU_LEVELS} value={data.eduLevel} onChange={(v) => upd('eduLevel', v)} />
-            <div className="grid-2">
-              <Field label="17. ชื่อสถาบันการศึกษา" required hint="ชื่อเต็ม ไม่ใช้ตัวย่อ" example="มหาวิทยาลัยเทคโนโลยีราชมงคลธัญบุรี">
-                <input value={data.institution} onChange={(e) => upd('institution', e.target.value)} />
-              </Field>
-              <Field label="18. คณะ/วิทยาลัย" required example="คณะเทคโนโลยีการเกษตร">
-                <input value={data.faculty} onChange={(e) => upd('faculty', e.target.value)} />
-              </Field>
-              <Field label="19. สาขาวิชา" required example="วิทยาศาสตร์และเทคโนโลยีการอาหาร">
-                <input value={data.major} onChange={(e) => upd('major', e.target.value)} />
-              </Field>
-              <Field label="21. GPAX (เกรดเฉลี่ยสะสม)" required hint="0.00–4.00" example="3.25">
-                <input type="number" step="0.01" min="0" max="4" value={data.gpax} onChange={(e) => upd('gpax', e.target.value)} />
-              </Field>
-            </div>
-            <RadioGroup label="20. ชั้นปีปัจจุบัน" required options={YEAR_LEVELS} value={data.yearLevel} onChange={(v) => upd('yearLevel', v)} />
-            <Field label="22. วันที่คาดว่าจะสำเร็จการศึกษา" required hint="เดือน/ปี">
-              <input type="month" value={data.gradMonthYear} onChange={(e) => upd('gradMonthYear', e.target.value)} />
-            </Field>
-            <RadioGroup label="23. ประเภทการสมัคร" required options={APPLICATION_TYPES} value={data.applicationType} onChange={(v) => upd('applicationType', v)} />
-            <div className="grid-2">
-              <Field label="24. วันที่เริ่มปฏิบัติงานได้" required>
-                <input type="date" value={data.availableStart} onChange={(e) => upd('availableStart', e.target.value)} />
-              </Field>
-              <Field label="วันที่สิ้นสุด" required>
-                <input type="date" value={data.availableEnd} onChange={(e) => upd('availableEnd', e.target.value)} />
-              </Field>
-            </div>
-          </fieldset>
-        )}
-
-        {/* ===== STEP 2: ผู้ประสานงาน ===== */}
-        {step === 2 && (
-          <fieldset>
-            <legend>ส่วนที่ 3 · ผู้ประสานงานของสถาบันการศึกษา</legend>
-            <Field label="25. ชื่อ–นามสกุล อาจารย์ที่ปรึกษา/เจ้าหน้าที่สหกิจ" required example="อาจารย์ ดร. สมชาย ใจดี">
-              <input value={data.coordinatorName} onChange={(e) => upd('coordinatorName', e.target.value)} />
-            </Field>
-            <Field label="26. ตำแหน่ง" hint="ไม่บังคับ" example="อาจารย์ที่ปรึกษาสหกิจศึกษา">
-              <input value={data.coordinatorPosition} onChange={(e) => upd('coordinatorPosition', e.target.value)} />
-            </Field>
-            <div className="grid-2">
-              <Field label="27. หมายเลขโทรศัพท์ผู้ประสานงาน" required example="0812345678">
-                <input inputMode="numeric" value={data.coordinatorPhone} onChange={(e) => upd('coordinatorPhone', e.target.value.replace(/\D/g, ''))} maxLength={10} />
-              </Field>
-              <Field label="28. Email ผู้ประสานงาน" required example="somchai@university.ac.th">
-                <input type="email" value={data.coordinatorEmail} onChange={(e) => upd('coordinatorEmail', e.target.value)} />
-              </Field>
-            </div>
-          </fieldset>
-        )}
-
-        {/* ===== STEP 3: กิจกรรม/ทักษะ ===== */}
-        {step === 3 && (
-          <fieldset>
-            <legend>ส่วนที่ 4 · กิจกรรม ประสบการณ์ และทักษะ</legend>
-            <Field label="29. กิจกรรมระหว่างเรียนและประสบการณ์ที่ผ่านมา" required hint="ระบุได้มากกว่า 1 กิจกรรม (บทบาท/ความรับผิดชอบ)">
-              <textarea rows={5} value={data.activities} onChange={(e) => upd('activities', e.target.value)} />
-            </Field>
-            <Field label="30. ทักษะทางภาษา" hint="ไม่บังคับ · ระบุภาษา ระดับ และคะแนน/ใบรับรอง หากมี">
-              <textarea rows={3} value={data.languages} onChange={(e) => upd('languages', e.target.value)} />
-            </Field>
-            <CheckboxGroup
-              label="31. ทักษะคอมพิวเตอร์/โปรแกรมที่ใช้งานได้"
-              hint="เลือกได้มากกว่า 1"
-              options={COMPUTER_SKILLS}
-              values={data.computerSkills}
-              onChange={(v) => upd('computerSkills', v)}
-            />
-            {data.computerSkills.includes('อื่น ๆ') && (
-              <Field label="โปรดระบุโปรแกรมอื่น ๆ">
-                <input value={data.computerSkillsOther} onChange={(e) => upd('computerSkillsOther', e.target.value)} />
-              </Field>
-            )}
-            <Field label="32. ทักษะ/ความสามารถพิเศษอื่น ๆ" hint="ไม่บังคับ" example="การนำเสนอ การขาย การถ่ายภาพ การตัดต่อวิดีโอ">
-              <textarea rows={3} value={data.specialSkills} onChange={(e) => upd('specialSkills', e.target.value)} />
-            </Field>
-            <Field label="33. แนะนำตัวและเหตุผลที่สนใจเข้าร่วมโครงการ" required hint="แรงจูงใจ สิ่งที่อยากเรียนรู้ เป้าหมาย (แนะนำ 100–300 คำ)">
-              <textarea rows={6} value={data.motivation} onChange={(e) => upd('motivation', e.target.value)} />
-            </Field>
-          </fieldset>
-        )}
-
-        {/* ===== STEP 4: ความพร้อม ===== */}
-        {step === 4 && (
-          <fieldset>
-            <legend>ส่วนที่ 5 · ความพร้อมในการปฏิบัติงาน</legend>
-            <RadioGroup label="34. ปฏิบัติงาน 6 วัน/สัปดาห์ได้หรือไม่" required options={WORK_6DAYS} value={data.work6days} onChange={(v) => upd('work6days', v)} />
-            <RadioGroup label="35. ปฏิบัติงานเป็นกะได้หรือไม่" required hint="เวลางานขึ้นกับตารางของแต่ละสาขา/แผนก" options={WORK_SHIFT} value={data.workShift} onChange={(v) => upd('workShift', v)} />
-            {data.workShift === 'มีข้อจำกัดด้านเวลา' && (
-              <Field label="กรุณาระบุข้อจำกัดด้านเวลา" required>
-                <input value={data.workShiftLimit} onChange={(e) => upd('workShiftLimit', e.target.value)} />
-              </Field>
-            )}
-            <RadioGroup label="36. ปฏิบัติงานที่สาขาในภูมิภาคที่บริษัทกำหนดได้หรือไม่" required options={REGION_ABILITY} value={data.regionAbility} onChange={(v) => upd('regionAbility', v)} />
-            <CheckboxGroup label="37. ภูมิภาคที่สะดวกปฏิบัติงาน" required hint="เลือกได้มากกว่า 1 (เป็นข้อมูลประกอบการพิจารณา ไม่รับประกันการจัดสาขา)" options={REGIONS} values={data.regions} onChange={(v) => upd('regions', v)} />
-            <Field label="38. จังหวัดที่สะดวกปฏิบัติงาน" required hint="ระบุได้สูงสุด 3 จังหวัด เรียงตามความสะดวก">
-              <div className="grid-3">
-                <input placeholder="จังหวัดลำดับ 1" value={data.province1} onChange={(e) => upd('province1', e.target.value)} />
-                <input placeholder="จังหวัดลำดับ 2" value={data.province2} onChange={(e) => upd('province2', e.target.value)} />
-                <input placeholder="จังหวัดลำดับ 3" value={data.province3} onChange={(e) => upd('province3', e.target.value)} />
+            <div className="row-2" style={{ marginBottom: 18 }}>
+              <div>
+                <label className="lbl">ชื่อจริง</label>
+                <input className="fld" value={data.firstName} onChange={onInput('firstName')} placeholder="ธนวัฒน์" />
               </div>
-            </Field>
-            <RankSelect label="39. ความสนใจในแผนกอาหารสด" required options={FRESH_FOOD_DEPTS} value={data.freshFoodRank} onChange={(v) => upd('freshFoodRank', v)} />
-            <RadioGroup label="40. พาหนะส่วนตัว" hint="ไม่บังคับ" options={VEHICLES} value={data.vehicle} onChange={(v) => upd('vehicle', v)} />
-            {data.vehicle === 'อื่น ๆ' && (
-              <Field label="โปรดระบุพาหนะ">
-                <input value={data.vehicleOther} onChange={(e) => upd('vehicleOther', e.target.value)} />
-              </Field>
-            )}
-          </fieldset>
+              <div>
+                <label className="lbl">นามสกุล</label>
+                <input className="fld" value={data.lastName} onChange={onInput('lastName')} placeholder="ใจดี" />
+              </div>
+            </div>
+            <label className="lbl">เบอร์มือถือ</label>
+            <input className="fld" value={data.phone} onChange={onInput('phone')} placeholder="08X XXX XXXX" inputMode="numeric" />
+            {data.phone && <p className={phoneOk(data.phone) ? 'hint-ok' : 'hint-bad'}>{phoneOk(data.phone) ? '✓ เบอร์ถูกต้อง' : 'กรุณากรอกเบอร์ 10 หลัก ขึ้นต้นด้วย 0'}</p>}
+            <label className="lbl" style={{ marginTop: 18 }}>
+              Email
+            </label>
+            <input className="fld" value={data.email} onChange={onInput('email')} placeholder="you@email.com" type="email" />
+            {data.email && <p className={emailOk(data.email) ? 'hint-ok' : 'hint-bad'}>{emailOk(data.email) ? '✓ อีเมลถูกต้อง' : 'รูปแบบอีเมลไม่ถูกต้อง'}</p>}
+          </div>
         )}
 
-        {/* ===== STEP 5: เอกสาร ===== */}
+        {step === 1 && (
+          <div>
+            <h2 className="step-title">ข้อมูลการศึกษา 🎓</h2>
+            <p className="step-sub">บอกเราว่าคุณเรียนที่ไหน สาขาอะไร</p>
+            <label className="lbl">มหาวิทยาลัย / สถาบัน</label>
+            <input className="fld" style={{ marginBottom: 18 }} value={data.university} onChange={onInput('university')} placeholder="เช่น จุฬาลงกรณ์มหาวิทยาลัย" />
+            <label className="lbl">คณะ</label>
+            <input className="fld" style={{ marginBottom: 18 }} value={data.faculty} onChange={onInput('faculty')} placeholder="เช่น พาณิชยศาสตร์และการบัญชี" />
+            <label className="lbl">สาขาวิชา</label>
+            <input className="fld" style={{ marginBottom: 18 }} value={data.major} onChange={onInput('major')} placeholder="เช่น การจัดการโลจิสติกส์" />
+            <div className="row-2">
+              <div>
+                <label className="lbl">ชั้นปี</label>
+                <input className="fld" value={data.year} onChange={onInput('year')} placeholder="เช่น 3" inputMode="numeric" />
+              </div>
+              <div>
+                <label className="lbl">เกรดเฉลี่ย (GPAX)</label>
+                <input className="fld" value={data.gpa} onChange={onInput('gpa')} placeholder="เช่น 3.25" inputMode="decimal" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {step === 2 && (
+          <div>
+            <h2 className="step-title">อาจารย์ผู้ประสานงาน 📞</h2>
+            <p className="step-sub">ผู้ที่มหาวิทยาลัยมอบหมายให้ดูแลการฝึกงาน</p>
+            <label className="lbl">ชื่อ–นามสกุล อาจารย์</label>
+            <input className="fld" style={{ marginBottom: 18 }} value={data.coordName} onChange={onInput('coordName')} placeholder="เช่น อ.สมชาย รักเรียน" />
+            <label className="lbl">เบอร์ติดต่อ</label>
+            <input className="fld" style={{ marginBottom: 18 }} value={data.coordPhone} onChange={onInput('coordPhone')} placeholder="0X XXX XXXX" inputMode="numeric" />
+            <label className="lbl">อีเมลอาจารย์</label>
+            <input className="fld" value={data.coordEmail} onChange={onInput('coordEmail')} placeholder="advisor@university.ac.th" type="email" />
+          </div>
+        )}
+
+        {step === 3 && (
+          <div>
+            <h2 className="step-title">ทักษะ &amp; กิจกรรม ✨</h2>
+            <p className="step-sub">เลือกทักษะที่ใช่ แล้วเล่าประสบการณ์สั้น ๆ</p>
+            <label className="lbl">ทักษะเด่น (เลือกได้หลายข้อ)</label>
+            <div className="chips" style={{ marginBottom: 20 }}>
+              {SKILLS.map((s) => (
+                <button key={s} className={`chip ${data.skills.includes(s) ? 'on' : ''}`} onClick={() => toggleArr('skills', s)}>
+                  {s}
+                </button>
+              ))}
+            </div>
+            <label className="lbl">ประสบการณ์ / กิจกรรมเด่น</label>
+            <textarea className="fld" rows={4} value={data.activities} onChange={onInput('activities')} placeholder="เช่น เคยเป็นประธานชมรม, ฝึกงานร้านค้า, โครงงาน..." />
+          </div>
+        )}
+
+        {step === 4 && (
+          <div>
+            <h2 className="step-title">ความพร้อมฝึกงาน 📅</h2>
+            <p className="step-sub">ช่วงเวลาและสาขาที่สะดวก</p>
+            <label className="lbl">พร้อมเริ่มฝึกวันที่</label>
+            <input className="fld" style={{ marginBottom: 18 }} value={data.availableFrom} onChange={onInput('availableFrom')} placeholder="เช่น 1 ต.ค. 2569" />
+            <label className="lbl">สาขา Makro ที่สะดวก</label>
+            <input className="fld" style={{ marginBottom: 18 }} value={data.preferBranch} onChange={onInput('preferBranch')} placeholder="เช่น แม็คโคร สาขาลาดพร้าว" />
+            <div className="toggle-row">
+              <div>
+                <div style={{ font: "600 14px 'Anuphan'", color: '#fff' }}>มีพาหนะส่วนตัว</div>
+                <div style={{ fontSize: 12, color: '#A9B6D4' }}>สะดวกเดินทางไปสาขา</div>
+              </div>
+              <button className={`toggle ${data.vehicle ? 'on' : ''}`} onClick={() => upd('vehicle', !data.vehicle)}>
+                <span className="knob" />
+              </button>
+            </div>
+          </div>
+        )}
+
         {step === 5 && (
-          <fieldset>
-            <legend>ส่วนที่ 6 · เอกสารประกอบการสมัคร</legend>
-            <FileUpload
-              label="รูปถ่ายหน้าตรง"
-              required
-              accept=".jpg,.jpeg,.png"
-              maxBytes={MAX_DOC_BYTES}
-              hint="JPG/JPEG/PNG · เห็นใบหน้าชัด แต่งกายสุภาพ พื้นหลังเรียบ ไม่สวมหมวก/แว่นกันแดด ไม่มีบุคคลอื่นในภาพ (ใช้เพื่อยืนยันตัวตนเท่านั้น)"
-              onChange={(f) => setPhoto(f[0] || null)}
-            />
-            <FileUpload label="41. Resume / ประวัติส่วนตัว" required accept=".pdf,.doc,.docx" maxBytes={MAX_10MB} hint="PDF, DOC หรือ DOCX" onChange={(f) => setResume(f[0] || null)} />
-            <FileUpload label="42. Transcript / ผลการศึกษาล่าสุด" required accept=".pdf,.jpg,.jpeg,.png" maxBytes={MAX_10MB} hint="PDF, JPG หรือ PNG" onChange={(f) => setTranscript(f[0] || null)} />
-            <FileUpload label="43. หนังสือขอความอนุเคราะห์ฝึกงาน/สหกิจ" accept=".pdf,.jpg,.jpeg,.png" maxBytes={MAX_10MB} hint="PDF, JPG หรือ PNG · ส่งภายหลังได้ถ้ายังไม่ออกเอกสาร" onChange={(f) => setCoopLetter(f[0] || null)} />
-            <FileUpload label="44. Portfolio / เอกสารประกอบอื่น ๆ" accept=".pdf" multiple maxBytes={MAX_PORTFOLIO_BYTES} hint="PDF" onChange={setPortfolio} />
-          </fieldset>
+          <div>
+            <h2 className="step-title">แนบเอกสารกันหน่อย 📎</h2>
+            <p className="step-sub">ไฟล์ละไม่เกิน 5MB · รองรับ PDF / รูปภาพ</p>
+
+            <label className="upzone gold">
+              <input type="file" accept=".jpg,.jpeg,.png" hidden onChange={pickFile(setPhoto)} />
+              <div className="ico" style={{ background: 'rgba(255,196,46,.15)' }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFC42E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <circle cx="9" cy="9" r="2" />
+                  <path d="M21 15l-5-5L5 21" />
+                </svg>
+              </div>
+              <div className="t">รูปถ่ายหน้าตรง</div>
+              <div className="s">แตะเพื่อเลือกรูป · JPG/PNG</div>
+              {photo && <div className="picked">📎 {photo.name}</div>}
+            </label>
+
+            <label className="upzone red">
+              <input type="file" accept=".pdf,.doc,.docx" hidden onChange={pickFile(setResume)} />
+              <div className="ico" style={{ background: 'rgba(226,35,26,.15)' }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FF5A50" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+                </svg>
+              </div>
+              <div className="t">Resume / ประวัติส่วนตัว</div>
+              <div className="s">แตะเพื่อเลือกไฟล์ · PDF, DOC</div>
+              {resume && <div className="picked">📎 {resume.name}</div>}
+            </label>
+
+            <label className="upzone">
+              <input type="file" accept=".pdf,.jpg,.jpeg,.png" hidden onChange={pickFile(setTranscript)} />
+              <div className="ico" style={{ background: 'rgba(63,197,240,.12)' }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3FC5F0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z M14 2v6h6" />
+                </svg>
+              </div>
+              <div className="t">Transcript</div>
+              <div className="s">แตะเพื่อเลือกไฟล์ · PDF, รูป</div>
+              {transcript && <div className="picked">📎 {transcript.name}</div>}
+            </label>
+
+            <div className="note-tip">
+              <span>💡</span> Portfolio และหนังสือขอฝึกงาน แนบทีหลังได้ ไม่บังคับตอนนี้
+            </div>
+          </div>
         )}
 
-        {/* ===== STEP 6: ช่องทางข่าวสาร ===== */}
         {step === 6 && (
-          <fieldset>
-            <legend>ส่วนที่ 7 · ช่องทางการรับทราบข่าวสาร</legend>
-            <CheckboxGroup label="45. ทราบข่าวการรับสมัครจากช่องทางใด" required hint="เลือกได้มากกว่า 1" options={NEWS_SOURCES} values={data.newsSources} onChange={(v) => upd('newsSources', v)} />
-            {data.newsSources.includes('อื่น ๆ') && (
-              <Field label="โปรดระบุช่องทางอื่น ๆ">
-                <input value={data.newsSourceOther} onChange={(e) => upd('newsSourceOther', e.target.value)} />
-              </Field>
-            )}
-            <Field label="46. ชื่อสถาบัน กิจกรรม หรือบุคคลที่แนะนำ" hint="ไม่บังคับ" example="งาน Career Day หรือรุ่นพี่ในโครงการ">
-              <input value={data.referralDetail} onChange={(e) => upd('referralDetail', e.target.value)} />
-            </Field>
-          </fieldset>
+          <div>
+            <h2 className="step-title">รู้จักโครงการจากไหน? 📣</h2>
+            <p className="step-sub">เลือกได้หลายช่องทาง ช่วยให้เราปรับปรุงการสื่อสาร</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {SOURCES.map((s) => (
+                <button key={s} className={`chip chip-block ${data.sources.includes(s) ? 'on' : ''}`} onClick={() => toggleArr('sources', s)}>
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
         )}
 
-        {/* ===== STEP 7: รับรอง/PDPA ===== */}
         {step === 7 && (
-          <fieldset>
-            <legend>ส่วนที่ 8 · การรับรองข้อมูลและ PDPA</legend>
-            <label className="consent">
-              <input type="checkbox" checked={data.certifyAccuracy} onChange={(e) => upd('certifyAccuracy', e.target.checked)} />
-              <span>
-                47. ข้าพเจ้ารับรองว่าข้อมูลและเอกสารที่ให้ไว้ถูกต้องและเป็นความจริง
-                หากพบว่าไม่ถูกต้อง บริษัทอาจพิจารณายกเลิกการสมัครหรือการเข้าร่วมโครงการ <span className="req">*</span>
+          <div>
+            <h2 className="step-title">ขั้นตอนสุดท้าย 🔒</h2>
+            <p className="step-sub">ตรวจสอบและยินยอมให้เราเก็บข้อมูล</p>
+            <div className="summary-card">
+              <div className="h">สรุปใบสมัคร</div>
+              <div className="summary-row">
+                <span className="muted">ชื่อ</span>
+                <span style={{ color: '#fff' }}>
+                  {data.firstName} {data.lastName}
+                </span>
+              </div>
+              <div className="summary-row">
+                <span className="muted">โครงการ</span>
+                <span style={{ color: '#fff' }}>{programName}</span>
+              </div>
+              <div className="summary-row">
+                <span className="muted">ติดต่อ</span>
+                <span style={{ color: '#fff' }}>{data.phone || data.email || '—'}</span>
+              </div>
+            </div>
+            <button className={`consent-box ${consent ? 'on' : ''}`} onClick={() => setConsent((c) => !c)}>
+              <span className="consent-tick">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0A1A3F" strokeWidth="3.5" style={{ opacity: consent ? 1 : 0 }}>
+                  <path d="M20 6L9 17l-5-5" />
+                </svg>
               </span>
-            </label>
-            <label className="consent">
-              <input type="checkbox" checked={data.acknowledgePrivacy} onChange={(e) => upd('acknowledgePrivacy', e.target.checked)} />
-              <span>
-                48. ข้าพเจ้าได้อ่านและรับทราบประกาศความเป็นส่วนตัวสำหรับผู้สมัครงานและนักศึกษาฝึกงานของบริษัทแล้ว
-                (เวอร์ชัน {CONSENT_VERSION}) <span className="req">*</span>
+              <span style={{ fontSize: 13, lineHeight: 1.55, color: '#EAF0FF' }}>
+                ข้าพเจ้ายินยอมให้บริษัทเก็บและใช้ข้อมูลส่วนบุคคลเพื่อการพิจารณารับสมัครฝึกงาน ตาม{' '}
+                <span style={{ color: '#3FC5F0', textDecoration: 'underline' }}>ประกาศความเป็นส่วนตัว (PDPA)</span>
               </span>
-            </label>
-            <RadioGroup
-              label="49. ยินยอมรับข่าวสารโอกาสฝึกงาน/สมัครงานในอนาคต"
-              hint="เป็นทางเลือก ไม่มีผลต่อการพิจารณาใบสมัครปัจจุบัน"
-              options={MARKETING_CONSENT}
-              value={data.marketingConsent}
-              onChange={(v) => upd('marketingConsent', v)}
-            />
-          </fieldset>
+            </button>
+          </div>
         )}
 
-        {error && <p className="error-text">{error}</p>}
+        {error && <p className="error-text" style={{ marginTop: 16 }}>{error}</p>}
+      </div>
 
-        {/* nav */}
-        <div className="wizard-nav">
-          {step > 0 && (
-            <button type="button" className="btn btn-ghost" onClick={back} disabled={submitting}>
-              ← ย้อนกลับ
-            </button>
-          )}
-          <span style={{ flex: 1 }} />
-          {step < STEP_TITLES.length - 1 ? (
-            <button type="button" className="btn btn-primary" onClick={next}>
-              ถัดไป →
-            </button>
-          ) : (
-            <button type="button" className="btn btn-primary btn-lg" onClick={handleSubmit} disabled={submitting}>
-              {submitting ? 'กำลังส่ง…' : 'ส่งใบสมัคร'}
-            </button>
-          )}
-        </div>
+      {/* footer nav */}
+      <div className="apply-footer">
+        <button className="icon-btn" onClick={back}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </button>
+        {step < 7 ? (
+          <button className="btn btn-red" style={{ flex: 1 }} onClick={next}>
+            ถัดไป →
+          </button>
+        ) : (
+          <button className="btn btn-red" style={{ flex: 1 }} onClick={handleSubmit} disabled={submitting || !consent}>
+            {submitting ? 'กำลังส่ง…' : 'ส่งใบสมัคร ✓'}
+          </button>
+        )}
       </div>
     </div>
   );
