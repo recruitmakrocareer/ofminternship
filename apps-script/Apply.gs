@@ -5,9 +5,12 @@
  */
 
 function handleApply(payload) {
-  // validate input เบื้องต้นก่อนล็อก
+  // validate input ฝั่ง server (อย่าเชื่อ frontend อย่างเดียว)
   const errValidate = validateApplyPayload(payload);
   if (errValidate) return { ok: false, error: errValidate };
+
+  // spam protection — ตรวจ Cloudflare Turnstile (ข้ามถ้ายังไม่ตั้ง TURNSTILE_SECRET)
+  if (!verifyTurnstile(payload.turnstileToken)) return { ok: false, error: 'captcha_failed' };
 
   const lock = LockService.getScriptLock();
   lock.waitLock(30000); // กัน race condition ตอนหลายคนสมัครพร้อมกัน
@@ -15,6 +18,14 @@ function handleApply(payload) {
     const ss = SpreadsheetApp.openById(SHEET_ID);
     const candSheet = ss.getSheetByName(TAB.CAND);
     const appSheet = ss.getSheetByName(TAB.APP);
+
+    // กันใบสมัครซ้ำ — อีเมลเดิมสมัครโครงการเดิมแล้ว → คืน tracking code เดิม
+    const dup = findDuplicateApplication(ss, payload.personal.email, payload.programId);
+    if (dup) {
+      lock.releaseLock();
+      return { ok: false, error: 'duplicate', trackingCode: dup };
+    }
+
     const now = new Date();
     const candidateId = 'C' + Utilities.getUuid().replace(/-/g, '').slice(0, 8);
     const applicationId = 'A' + Utilities.getUuid().replace(/-/g, '').slice(0, 8);
@@ -83,6 +94,9 @@ function handleApply(payload) {
       try { updateCandidateAiStatus(candidateId, 'failed'); } catch (ignore) {}
     }
 
+    // 6) แจ้งเตือนทีม TA ทางอีเมล (ข้ามถ้ายังไม่ตั้ง TA_NOTIFY_EMAIL)
+    try { notifyTA(trackingCode, payload); } catch (mailErr) { /* ไม่ให้อีเมลล้มการสมัคร */ }
+
     return { ok: true, trackingCode: trackingCode, candidateId: candidateId };
   } catch (err) {
     if (lock.hasLock()) lock.releaseLock();
@@ -90,14 +104,78 @@ function handleApply(payload) {
   }
 }
 
-/** ตรวจ payload เบื้องต้น — คืน string error หรือ null ถ้าผ่าน */
+/** ตรวจ payload ฝั่ง server — คืน string error หรือ null ถ้าผ่าน */
 function validateApplyPayload(payload) {
   if (!payload) return 'missing_payload';
-  if (!payload.personal || !payload.personal.firstName || !payload.personal.email) return 'missing_personal';
+  const p = payload.personal || {};
+  if (!p.firstName || !p.lastName) return 'missing_name';
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(p.email || ''))) return 'invalid_email';
+  if (!/^0\d{9}$/.test(String(p.phone || ''))) return 'invalid_phone';
   if (!payload.education || !payload.education.university) return 'missing_education';
+  const gpa = payload.education.gpa;
+  if (gpa !== '' && gpa != null && (isNaN(Number(gpa)) || Number(gpa) < 0 || Number(gpa) > 4)) return 'invalid_gpa';
   if (!payload.programId) return 'missing_program';
   if (!payload.consent || !payload.consent.accepted) return 'consent_required';
   return null;
+}
+
+/**
+ * verifyTurnstile — ตรวจ token จาก Cloudflare Turnstile กับ server ของ Cloudflare
+ * ถ้ายังไม่ตั้ง Script Property `TURNSTILE_SECRET` จะข้าม (คืน true) เพื่อไม่ให้ระบบล้มก่อนตั้งค่า
+ */
+function verifyTurnstile(token) {
+  const secret = PROPS.getProperty('TURNSTILE_SECRET');
+  if (!secret) return true; // ยังไม่เปิดใช้ spam protection
+  if (!token) return false;
+  try {
+    const res = UrlFetchApp.fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'post',
+      payload: { secret: secret, response: token },
+      muteHttpExceptions: true,
+    });
+    return JSON.parse(res.getContentText()).success === true;
+  } catch (e) {
+    return false;
+  }
+}
+
+/**
+ * findDuplicateApplication — คืน trackingCode ถ้าอีเมลนี้เคยสมัครโครงการเดียวกันแล้ว มิฉะนั้น null
+ */
+function findDuplicateApplication(ss, email, programId) {
+  const target = String(email || '').toLowerCase().trim();
+  if (!target) return null;
+  const cand = ss.getSheetByName(TAB.CAND).getDataRange().getValues().slice(1);
+  const idsWithEmail = {};
+  cand.forEach((r) => {
+    if (String(r[CAND.email - 1]).toLowerCase().trim() === target) idsWithEmail[r[CAND.candidateId - 1]] = true;
+  });
+  if (!Object.keys(idsWithEmail).length) return null;
+  const apps = ss.getSheetByName(TAB.APP).getDataRange().getValues().slice(1);
+  for (let i = 0; i < apps.length; i++) {
+    if (idsWithEmail[apps[i][APP.candidateId - 1]] && String(apps[i][APP.programId - 1]) === String(programId)) {
+      return apps[i][APP.trackingCode - 1];
+    }
+  }
+  return null;
+}
+
+/** notifyTA — ส่งอีเมลสรุปใบสมัครใหม่ให้ทีม TA (ตั้ง Script Property `TA_NOTIFY_EMAIL`) */
+function notifyTA(trackingCode, payload) {
+  const to = PROPS.getProperty('TA_NOTIFY_EMAIL');
+  if (!to) return;
+  const p = payload.personal || {};
+  const e = payload.education || {};
+  const body =
+    'มีใบสมัครฝึกงานใหม่\n\n' +
+    'รหัสติดตาม: ' + trackingCode + '\n' +
+    'ชื่อ: ' + (p.firstName || '') + ' ' + (p.lastName || '') + '\n' +
+    'อีเมล: ' + (p.email || '') + '\n' +
+    'เบอร์: ' + (p.phone || '') + '\n' +
+    'สถาบัน: ' + (e.university || '') + ' · ' + (e.faculty || '') + ' · ' + (e.major || '') + '\n' +
+    'GPAX: ' + (e.gpa || '-') + '\n\n' +
+    'เปิดดูในหน้า Admin เพื่อดูรายละเอียดและเอกสารแนบ';
+  MailApp.sendEmail(to, 'ใบสมัครฝึกงานใหม่ · ' + trackingCode, body);
 }
 
 /**

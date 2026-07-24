@@ -54,6 +54,8 @@ export interface ApplyPayload {
   };
   // แบบฟอร์มทางการฉบับเต็ม (49 คำถาม) — backend เก็บเป็น JSON คอลัมน์เดียว applicationFormJson
   form?: Record<string, unknown>;
+  // token จาก Cloudflare Turnstile (ถ้าเปิดใช้ spam protection)
+  turnstileToken?: string;
 }
 
 export interface StatusHistoryItem {

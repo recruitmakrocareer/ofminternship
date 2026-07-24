@@ -13,6 +13,17 @@ Backend ทั้งหมดของระบบรับสมัครฝึ
 | `Track.gs` | `handleTrack` (public + email verify), `listPrograms`, `findRow`/`findRowIndex` |
 | `Admin.gs` | `getCandidate`, `listCandidates`, `updateApplicationStatus`, mapper `rowToCandidate`/`rowToApplication` |
 | `Seed.gs` | (P1) `setupSheets` สร้าง header 3 แท็บ, `seedProgram` ใส่โครงการตัวอย่าง |
+| `Maintenance.gs` | `runRetention` (ตั้ง time-driven trigger รายเดือน) — ย้ายโฟลเดอร์ผู้สมัครที่ไม่ผ่าน + เก่ากว่า `RETENTION_MONTHS` ไป `_archive/` |
+
+## Production hardening (มีในโค้ดแล้ว)
+
+- **Validation ฝั่ง server** — `validateApplyPayload` ตรวจอีเมล/เบอร์/GPAX/ฟิลด์บังคับ (ไม่เชื่อ frontend อย่างเดียว)
+- **กันใบสมัครซ้ำ** — อีเมลเดิม + โครงการเดิม → คืน `{ok:false, error:'duplicate', trackingCode}`
+- **Spam protection** — ตั้ง `TURNSTILE_SECRET` เพื่อบังคับตรวจ Cloudflare Turnstile (ไม่ตั้ง = ข้าม)
+- **แจ้งเตือน TA** — ตั้ง `TA_NOTIFY_EMAIL` เพื่อรับอีเมลสรุปทุกใบสมัครใหม่
+- **Data retention** — `runRetention` (ตั้ง trigger) ย้ายไฟล์ผู้สมัครที่ไม่ผ่านเข้า `_archive/` ตาม `RETENTION_MONTHS`
+
+> ตั้ง **Cloudflare Turnstile** ฟรีที่ dash.cloudflare.com → Turnstile → สร้าง widget → ได้ **site key** (ใส่ `VITE_TURNSTILE_SITE_KEY`) + **secret** (ใส่ `TURNSTILE_SECRET`)
 | `appsscript.json` | manifest — timezone, web app access, OAuth scopes |
 
 ## P1 — Setup (ทำในบัญชี Google Workspace ขององค์กร)
@@ -30,6 +41,9 @@ Backend ทั้งหมดของระบบรับสมัครฝึ
    | `ADMIN_TOKEN` | สุ่ม string อีกชุด (แยกจาก submit) |
    | `GEMINI_API_KEY` | key จาก Google AI Studio |
    | `GEMINI_MODEL` | (ไม่บังคับ) เช่น `gemini-2.5-flash` |
+   | `TURNSTILE_SECRET` | (ไม่บังคับ) secret ของ Cloudflare Turnstile — เปิด spam protection (ตั้งคู่กับ `VITE_TURNSTILE_SITE_KEY` ฝั่ง frontend) |
+   | `TA_NOTIFY_EMAIL` | (ไม่บังคับ) อีเมลทีม TA รับแจ้งเตือนใบสมัครใหม่ |
+   | `RETENTION_MONTHS` | (ไม่บังคับ) เก็บข้อมูลผู้สมัครที่ไม่ผ่านกี่เดือน (default 12) |
 
 5. รัน `setupSheets` แล้ว `seedProgram` หนึ่งครั้งจาก editor (Authorize สิทธิ์ตอนถาม)
 

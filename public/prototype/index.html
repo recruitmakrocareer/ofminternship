@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600;700;800&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="./image-slot.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Noto Sans Thai', system-ui, sans-serif; background: radial-gradient(1000px 600px at 50% -10%, #12306A, #0A1A3F 55%, #071230 100%); color: #EAF0FF; min-height: 100vh; }
+  a { color: #3FC5F0; text-decoration: none; }
+  a:hover { color: #FFC42E; }
+  input, textarea { font-family: 'Noto Sans Thai', sans-serif; }
+  .scroll::-webkit-scrollbar { width: 0; }
+  .fld { width: 100%; background: #12244F; border: 1.5px solid rgba(63,197,240,.25); border-radius: 14px; padding: 13px 15px; font-size: 14px; color: #fff; outline: none; }
+  .fld::placeholder { color: #5A6890; }
+  .fld:focus { border-color: #3FC5F0; box-shadow: 0 0 16px -6px rgba(63,197,240,.7); }
+  .lbl { font: 600 13px 'Anuphan'; display: block; margin-bottom: 7px; color: #EAF0FF; }
+  .wrap { display: flex; min-height: 100vh; align-items: stretch; justify-content: center; }
+  .frame { position: relative; width: 100%; height: 100vh; display: flex; flex-direction: column; overflow: hidden; background: linear-gradient(180deg, #0B1B3D, #0A1730); }
+  .promo { display: none; }
+  @media (min-width: 760px) {
+    .wrap { align-items: center; gap: 0; padding: 0; }
+    .frame { max-width: 460px; height: 100vh; border-left: 1px solid rgba(63,197,240,.14); border-right: 1px solid rgba(63,197,240,.14); }
+    .statusbar { display: none !important; }
+  }
+  @media (min-width: 1040px) {
+    .promo { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; flex: 1; max-width: 640px; height: 100vh; padding: 44px 48px; }
+  }
+</style>
+</helmet>
+
+<div class="wrap">
+  <div class="promo">
+    <div ref="{{ promoRef }}" style="width: 100%; background: #0B1B3D; border: 1px solid rgba(63,197,240,.3); border-radius: 26px; padding: 16px; box-shadow: 0 0 60px -18px rgba(63,197,240,.4), 0 40px 80px -40px rgba(0,0,0,.7);">
+      <div style="position: relative; width: 100%; aspect-ratio: 4 / 5; background: #0A1730; border-radius: 16px; overflow: hidden;">
+        <div data-slide style="position: absolute; inset: 0; opacity: 1; transition: opacity .6s ease;"><image-slot id="promo-slide-1" shape="rect" fit="contain" src="uploads/ChatGPT%20Image%20Jul%2021,%202026,%2004_50_09%20PM.png" placeholder="โปสเตอร์โครงการ"></image-slot></div>
+        <div data-slide style="position: absolute; inset: 0; opacity: 0; transition: opacity .6s ease;"><image-slot id="promo-slide-2" shape="rect" fit="contain" placeholder="บรรยากาศการทำงานจริง"></image-slot></div>
+        <div data-slide style="position: absolute; inset: 0; opacity: 0; transition: opacity .6s ease;"><image-slot id="promo-slide-3" shape="rect" fit="contain" placeholder="ทีม/สาขา Makro"></image-slot></div>
+        <div data-slide style="position: absolute; inset: 0; opacity: 0; transition: opacity .6s ease;"><image-slot id="promo-slide-4" shape="rect" fit="contain" placeholder="กิจกรรมในโครงการ"></image-slot></div>
+      </div>
+      <div style="display: flex; gap: 7px; justify-content: center; margin-top: 14px;">
+        <span data-dot style="width: 20px; height: 7px; border-radius: 999px; background: #FFC42E; transition: all .3s;"></span>
+        <span data-dot style="width: 7px; height: 7px; border-radius: 999px; background: rgba(255,255,255,.35); transition: all .3s;"></span>
+        <span data-dot style="width: 7px; height: 7px; border-radius: 999px; background: rgba(255,255,255,.35); transition: all .3s;"></span>
+        <span data-dot style="width: 7px; height: 7px; border-radius: 999px; background: rgba(255,255,255,.35); transition: all .3s;"></span>
+      </div>
+    </div>
+    <div style="align-self: stretch; background: #fff; border-radius: 14px; padding: 14px 26px; box-shadow: 0 12px 30px -18px rgba(0,0,0,.6);"><img src="uploads/CPX%20MEDIA%20LOGO%20SINGLE%20LINE_0.jpg" alt="CP AXTRA · makro · Lotus's" style="width: 100%; height: auto; display: block;"></div>
+  </div>
+  <div class="frame">
+
+      <!-- status bar -->
+      <div class="statusbar" style="flex: 0 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 14px 26px 6px; font: 700 14px 'Anuphan'; color: #fff; z-index: 5;"><span>9:41</span><span style="display: flex; gap: 6px; align-items: center;"><svg width="18" height="12" viewBox="0 0 18 12" fill="#fff"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5.5" width="3" height="6.5" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg><span style="width: 24px; height: 12px; border: 1.5px solid #fff; border-radius: 3px; display: inline-block; position: relative;"><span style="position: absolute; top: 1.5px; left: 1.5px; bottom: 1.5px; width: 15px; background: #fff; border-radius: 1px;"></span></span></span></div>
+
+      <!-- ================= LANDING ================= -->
+      <sc-if value="{{ isLanding }}" hint-placeholder-val="{{ true }}">
+      <div class="scroll" style="flex: 1; overflow-y: auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 22px 12px;">
+          <div style="font-family: 'Anuphan'; font-weight: 800; font-size: 19px; color: #fff;">makro <span style="color: #FFC42E; font-weight: 600; font-size: 13px;">Internship</span></div>
+        </div>
+
+        <!-- header hero -->
+        <div style="margin: 0 16px; background: linear-gradient(155deg, #E2231A, #B4160F); border-radius: 24px; padding: 24px 22px; position: relative; overflow: hidden; box-shadow: 0 0 34px -10px rgba(226,35,26,.6);">
+          <svg style="position: absolute; top: -18px; right: -10px; opacity: .28;" width="110" height="110" viewBox="0 0 100 100" fill="none" stroke="#fff" stroke-width="2.5"><path d="M50 4l40 23v46L50 96 10 73V27z"/></svg>
+          <span style="display: inline-block; background: rgba(255,255,255,.18); color: #fff; font: 700 11px 'Anuphan'; letter-spacing: 0.6px; padding: 5px 12px; border-radius: 999px; margin-bottom: 14px; position: relative;">รับสมัคร 2026 · เปิดแล้ว</span>
+          <h1 style="font-family: 'Anuphan'; font-weight: 800; font-size: 34px; line-height: 0.98; color: #fff; margin: 0 0 12px; letter-spacing: -0.5px; position: relative;">ORDER<br>FULFILLMENT</h1>
+          <div style="display: inline-block; background: #05122B; border: 1px solid rgba(63,197,240,.4); color: #fff; font: 700 14px 'Anuphan'; letter-spacing: 0.5px; padding: 6px 14px; border-radius: 10px; position: relative;">INTERNSHIP PROGRAM</div>
+        </div>
+
+        <!-- program info -->
+        <div style="padding: 24px 20px 4px;">
+          <p style="font: 700 12px 'Anuphan'; letter-spacing: 1px; text-transform: uppercase; color: #FFC42E; margin: 0 0 6px;">เกี่ยวกับโครงการ</p>
+          <h2 style="font-family: 'Anuphan'; font-weight: 800; font-size: 21px; margin: 0 0 10px; color: #fff;">ร่วมงานและเรียนรู้กับแม็คโคร</h2>
+          <p style="font-size: 14px; color: #C4CEE6; line-height: 1.7; margin: 0;">ฝึกงานจริงกับทีม Operations ของแม็คโคร ปฏิบัติงานที่สาขา เรียนรู้งาน Retail Operations ครบวงจร มีพี่เลี้ยงดูแล พร้อมเบี้ยเลี้ยงรายเดือนและโอกาสได้งานต่อหลังจบโครงการ</p>
+        </div>
+
+        <!-- internship rounds -->
+        <div style="padding: 22px 20px 4px;">
+          <h2 style="font-family: 'Anuphan'; font-weight: 800; font-size: 19px; margin: 0 0 12px; color: #fff;">รอบการฝึกงาน</h2>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div style="display: flex; gap: 14px; align-items: center; background: #12244F; border: 1px solid rgba(63,197,240,.22); border-radius: 16px; padding: 15px 16px;"><span style="flex: 0 0 44px; height: 44px; background: linear-gradient(150deg,#E2231A,#B4160F); color: #fff; border-radius: 12px; display: grid; place-items: center; font: 800 20px 'Anuphan';">1</span><div><div style="font: 700 16px 'Anuphan'; color: #fff;">ต.ค. 69 – มี.ค. 70</div><div style="font-size: 12.5px; color: #A9B6D4;">ระยะฝึก 16+ สัปดาห์</div></div></div>
+            <div style="display: flex; gap: 14px; align-items: center; background: #12244F; border: 1px solid rgba(63,197,240,.22); border-radius: 16px; padding: 15px 16px;"><span style="flex: 0 0 44px; height: 44px; background: linear-gradient(150deg,#E2231A,#B4160F); color: #fff; border-radius: 12px; display: grid; place-items: center; font: 800 20px 'Anuphan';">2</span><div><div style="font: 700 16px 'Anuphan'; color: #fff;">มิ.ย. 70 – ต.ค. 70</div><div style="font-size: 12.5px; color: #A9B6D4;">ระยะฝึก 16+ สัปดาห์</div></div></div>
+          </div>
+        </div>
+
+        <!-- recruitment period -->
+        <div style="padding: 22px 20px 4px;">
+          <h2 style="font-family: 'Anuphan'; font-weight: 800; font-size: 19px; margin: 0 0 12px; color: #fff;">ระยะเวลารับสมัคร</h2>
+          <div style="background: linear-gradient(150deg, #12306A, #0B1E47); border: 1px solid rgba(63,197,240,.3); border-radius: 18px; padding: 18px 20px; display: flex; flex-direction: column; gap: 14px;">
+            <div style="display: flex; gap: 14px; align-items: center;"><span style="flex: 0 0 40px; height: 40px; background: rgba(226,35,26,.15); border-radius: 11px; display: grid; place-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FF5A50" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></span><div><div style="font: 700 15px 'Anuphan'; color: #fff;">ปิดรับสมัคร</div><div style="font-size: 13px; color: #A9B6D4;">20 สิงหาคม 2569</div></div></div>
+            <div style="display: flex; gap: 14px; align-items: center;"><span style="flex: 0 0 40px; height: 40px; background: rgba(63,197,240,.15); border-radius: 11px; display: grid; place-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3FC5F0" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span><div><div style="font: 700 15px 'Anuphan'; color: #fff;">สัมภาษณ์</div><div style="font-size: 13px; color: #A9B6D4;">21 สิงหาคม 2569</div></div></div>
+            <div style="display: flex; gap: 14px; align-items: center;"><span style="flex: 0 0 40px; height: 40px; background: rgba(255,196,46,.15); border-radius: 11px; display: grid; place-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFC42E" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span><div><div style="font: 700 15px 'Anuphan'; color: #FFD873;">เริ่มฝึกงาน</div><div style="font-size: 13px; color: #A9B6D4;">ตุลาคม 2569 เป็นต้นไป</div></div></div>
+          </div>
+        </div>
+
+        <!-- stat strip -->
+        <div style="display: flex; gap: 8px; padding: 18px 16px 6px;">
+          <div style="flex: 1; background: #12244F; border: 1px solid rgba(63,197,240,.25); border-radius: 16px; padding: 14px 8px; text-align: center;"><div style="font-family: 'Anuphan'; font-weight: 800; font-size: 20px; color: #FFC42E;">16+</div><div style="font-size: 11px; color: #A9B6D4;">สัปดาห์ฝึก</div></div>
+          <div style="flex: 1; background: #12244F; border: 1px solid rgba(63,197,240,.25); border-radius: 16px; padding: 14px 8px; text-align: center;"><div style="font-family: 'Anuphan'; font-weight: 800; font-size: 14px; color: #FFC42E; line-height: 1.15;">ปฏิบัติงาน<br>ที่สาขา</div><div style="font-size: 11px; color: #A9B6D4;">แม็คโคร</div></div>
+          <div style="flex: 1; background: #12244F; border: 1px solid rgba(63,197,240,.25); border-radius: 16px; padding: 14px 8px; text-align: center;"><div style="font-family: 'Anuphan'; font-weight: 800; font-size: 20px; color: #3FC5F0;">30</div><div style="font-size: 11px; color: #A9B6D4;">รับสมัคร (อัตรา)</div></div>
+        </div>
+
+        <!-- branches -->
+        <div style="padding: 20px 20px 4px;">
+          <p style="font: 700 12px 'Anuphan'; letter-spacing: 1px; text-transform: uppercase; color: #FFC42E; margin: 0 0 6px;">สาขาที่เปิดรับ</p>
+          <h2 style="font-family: 'Anuphan'; font-weight: 800; font-size: 21px; margin: 0 0 14px; color: #fff;">เลือกสายที่ใช่สำหรับคุณ</h2>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 10px; padding: 0 20px;">
+          <div style="display: flex; gap: 14px; align-items: center; background: #12244F; border: 1px solid rgba(63,197,240,.22); border-radius: 18px; padding: 15px;"><div style="flex: 0 0 44px; height: 44px; background: rgba(226,35,26,.15); border-radius: 12px; display: grid; place-items: center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FF5A50" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg></div><div><div style="font: 700 15px 'Anuphan'; color: #fff;">Supply Chain & Logistics</div><div style="font-size: 12.5px; color: #A9B6D4;">ซัพพลายเชนและโลจิสติกส์</div></div></div>
+          <div style="display: flex; gap: 14px; align-items: center; background: #12244F; border: 1px solid rgba(63,197,240,.22); border-radius: 18px; padding: 15px;"><div style="flex: 0 0 44px; height: 44px; background: rgba(255,196,46,.15); border-radius: 12px; display: grid; place-items: center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFC42E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h8M8 14h5"/></svg></div><div><div style="font: 700 15px 'Anuphan'; color: #fff;">Finance & Accounting</div><div style="font-size: 12.5px; color: #A9B6D4;">การเงินและการบัญชี</div></div></div>
+          <div style="display: flex; gap: 14px; align-items: center; background: #12244F; border: 1px solid rgba(63,197,240,.22); border-radius: 18px; padding: 15px;"><div style="flex: 0 0 44px; height: 44px; background: rgba(63,197,240,.15); border-radius: 12px; display: grid; place-items: center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3FC5F0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></div><div><div style="font: 700 15px 'Anuphan'; color: #fff;">Digital / Business Computer</div><div style="font-size: 12.5px; color: #A9B6D4;">ดิจิทัลและคอมพิวเตอร์ธุรกิจ</div></div></div>
+          <div style="display: flex; gap: 14px; align-items: center; background: #12244F; border: 1px solid rgba(63,197,240,.22); border-radius: 18px; padding: 15px;"><div style="flex: 0 0 44px; height: 44px; background: rgba(255,196,46,.15); border-radius: 12px; display: grid; place-items: center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFC42E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><path d="M3.27 6.96L12 12.01l8.73-5.05M12 22.08V12"/></svg></div><div><div style="font: 700 15px 'Anuphan'; color: #fff;">สาขาอื่น ๆ ที่เกี่ยวข้อง</div></div></div>
+        </div>
+
+        <!-- benefits -->
+        <div style="margin: 22px 20px 0; background: linear-gradient(150deg, #12306A, #0B1E47); border: 1px solid rgba(63,197,240,.3); border-radius: 20px; padding: 20px;">
+          <p style="font: 700 12px 'Anuphan'; letter-spacing: 1px; text-transform: uppercase; color: #FFC42E; margin: 0 0 14px;">สิ่งที่คุณจะได้รับ</p>
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div style="display: flex; gap: 11px; align-items: center; font-size: 14px; color: #EAF0FF;"><span style="flex: 0 0 26px; height: 26px; background: #FFC42E; border-radius: 50%; display: grid; place-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0A1A3F" stroke-width="3.5"><path d="M20 6L9 17l-5-5"/></svg></span> ประสบการณ์ทำงานจริง</div>
+            <div style="display: flex; gap: 11px; align-items: center; font-size: 14px; color: #EAF0FF;"><span style="flex: 0 0 26px; height: 26px; background: #FFC42E; border-radius: 50%; display: grid; place-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0A1A3F" stroke-width="3.5"><path d="M20 6L9 17l-5-5"/></svg></span> พัฒนาทักษะในสายอาชีพ</div>
+            <div style="display: flex; gap: 11px; align-items: center; font-size: 14px; color: #EAF0FF;"><span style="flex: 0 0 26px; height: 26px; background: #FFC42E; border-radius: 50%; display: grid; place-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0A1A3F" stroke-width="3.5"><path d="M20 6L9 17l-5-5"/></svg></span> เรียนรู้จากผู้เชี่ยวชาญ</div>
+            <div style="display: flex; gap: 11px; align-items: center; font-size: 14px; color: #EAF0FF;"><span style="flex: 0 0 26px; height: 26px; background: #FFC42E; border-radius: 50%; display: grid; place-items: center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0A1A3F" stroke-width="3.5"><path d="M20 6L9 17l-5-5"/></svg></span> โอกาสร่วมงานกับแม็คโคร</div>
+          </div>
+        </div>
+
+        <div style="padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+          <button onClick="{{ goApply }}" style="border: none; cursor: pointer; background: linear-gradient(150deg,#E2231A,#B4160F); color: #fff; font: 700 16px 'Anuphan'; text-align: center; padding: 16px; border-radius: 16px; box-shadow: 0 0 26px -6px rgba(226,35,26,.7);">สมัครฝึกงาน →</button>
+          <button onClick="{{ goJourney }}" style="border: 1px solid rgba(63,197,240,.3); cursor: pointer; background: transparent; color: #FFC42E; font: 600 15px 'Anuphan'; padding: 14px; border-radius: 16px;">ดูเส้นทางโครงการ</button>
+        </div>
+        <div style="padding: 8px 20px 4px;">
+          <div style="background: #fff; border-radius: 12px; padding: 12px 20px; box-shadow: 0 10px 26px -18px rgba(0,0,0,.5);"><img src="uploads/CPX%20MEDIA%20LOGO%20SINGLE%20LINE_0.jpg" alt="CP AXTRA · makro · Lotus's" style="width: 100%; height: auto; display: block;"></div>
+        </div>
+        <div style="height: 90px;"></div>
+      </div>
+      </sc-if>
+
+      <!-- ================= JOURNEY ================= -->
+      <sc-if value="{{ isJourney }}">
+      <div class="scroll" style="flex: 1; overflow-y: auto;">
+        <div style="padding: 8px 20px 4px;">
+          <p style="font: 700 12px 'Anuphan'; letter-spacing: 1px; text-transform: uppercase; color: #FFC42E; margin: 0 0 6px;">เส้นทางโครงการ</p>
+          <h2 style="font-family: 'Anuphan'; font-weight: 800; font-size: 23px; margin: 0 0 14px; line-height: 1.25; color: #fff;">ตั้งแต่สมัคร จนจบโครงการ</h2>
+        </div>
+        <div style="margin: 0 20px 20px; border-radius: 20px; overflow: hidden; height: 180px; background: #0A1730; border: 1px solid rgba(63,197,240,.25);"><image-slot id="p-journey-video" shape="rect" placeholder="วิดีโอแนะนำโครงการ (YouTube)"></image-slot></div>
+        <div style="padding: 0 20px 26px; position: relative;">
+          <div style="position: absolute; left: 39px; top: 20px; bottom: 30px; width: 2px; background: rgba(255,255,255,.12);"></div>
+          <div style="display: flex; gap: 16px; margin-bottom: 22px; position: relative;"><div style="flex: 0 0 40px; height: 40px; background: linear-gradient(150deg,#E2231A,#B4160F); border-radius: 14px; display: grid; place-items: center; color: #fff; font: 800 16px 'Anuphan'; z-index: 1; box-shadow: 0 0 16px -4px rgba(226,35,26,.8);">1</div><div style="flex: 1; background: #12244F; border: 1px solid rgba(63,197,240,.22); border-radius: 16px; padding: 14px 16px;"><div style="font: 700 15px 'Anuphan'; color: #fff;">สมัครออนไลน์</div><p style="font-size: 12.5px; color: #A9B6D4; margin: 4px 0 8px; line-height: 1.5;">กรอกใบสมัครและแนบเอกสารให้ครบถ้วน</p><span style="font: 600 11px 'Anuphan'; color: #FFC42E; background: rgba(255,196,46,.14); padding: 3px 10px; border-radius: 999px;">1 สัปดาห์</span></div></div>
+          <div style="display: flex; gap: 16px; margin-bottom: 22px; position: relative;"><div style="flex: 0 0 40px; height: 40px; background: linear-gradient(150deg,#E2231A,#B4160F); border-radius: 14px; display: grid; place-items: center; color: #fff; font: 800 16px 'Anuphan'; z-index: 1; box-shadow: 0 0 16px -4px rgba(226,35,26,.8);">2</div><div style="flex: 1; background: #12244F; border: 1px solid rgba(63,197,240,.22); border-radius: 16px; padding: 14px 16px;"><div style="font: 700 15px 'Anuphan'; color: #fff;">สัมภาษณ์</div><p style="font-size: 12.5px; color: #A9B6D4; margin: 4px 0 8px; line-height: 1.5;">พูดคุยกับทีมและหัวหน้าสาขา</p><span style="font: 600 11px 'Anuphan'; color: #FFC42E; background: rgba(255,196,46,.14); padding: 3px 10px; border-radius: 999px;">1–2 สัปดาห์</span></div></div>
+          <div style="display: flex; gap: 16px; margin-bottom: 22px; position: relative;"><div style="flex: 0 0 40px; height: 40px; background: linear-gradient(150deg,#E2231A,#B4160F); border-radius: 14px; display: grid; place-items: center; color: #fff; font: 800 16px 'Anuphan'; z-index: 1; box-shadow: 0 0 16px -4px rgba(226,35,26,.8);">3</div><div style="flex: 1; background: #12244F; border: 1px solid rgba(63,197,240,.22); border-radius: 16px; padding: 14px 16px;"><div style="font: 700 15px 'Anuphan'; color: #fff;">ฝึกงานจริง</div><p style="font-size: 12.5px; color: #A9B6D4; margin: 4px 0 8px; line-height: 1.5;">ลงสาขา มีพี่เลี้ยง ทำโปรเจกต์จริง</p><span style="font: 600 11px 'Anuphan'; color: #FFC42E; background: rgba(255,196,46,.14); padding: 3px 10px; border-radius: 999px;">16+ สัปดาห์</span></div></div>
+          <div style="display: flex; gap: 16px; position: relative;"><div style="flex: 0 0 40px; height: 40px; background: #FFC42E; border-radius: 14px; display: grid; place-items: center; z-index: 1; box-shadow: 0 0 16px -4px rgba(255,196,46,.8);"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0A1A3F" stroke-width="2.5"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 01-10 0z M17 4h2a2 2 0 010 4h-2M7 4H5a2 2 0 000 4h2"/></svg></div><div style="flex: 1; background: rgba(255,196,46,.1); border: 1px solid rgba(255,196,46,.35); border-radius: 16px; padding: 14px 16px;"><div style="font: 700 15px 'Anuphan'; color: #FFD873;">จบโครงการ + โอกาสได้งาน</div><p style="font-size: 12.5px; color: #C4CEE6; margin: 4px 0 0; line-height: 1.5;">มีสิทธิ์รับเข้าเป็นพนักงานจริงกับแม็คโคร</p></div></div>
+        </div>
+        <div style="padding: 0 20px 26px;"><button onClick="{{ goApply }}" style="width: 100%; border: none; cursor: pointer; background: linear-gradient(150deg,#E2231A,#B4160F); color: #fff; font: 700 16px 'Anuphan'; text-align: center; padding: 16px; border-radius: 16px; box-shadow: 0 0 24px -6px rgba(226,35,26,.7);">พร้อมสมัครแล้ว →</button></div>
+        <div style="height: 90px;"></div>
+      </div>
+      </sc-if>
+
+      <!-- ================= APPLY ================= -->
+      <sc-if value="{{ isApply }}">
+      <div style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+        <!-- progress header -->
+        <div style="flex: 0 0 auto; background: #0B2048; border-bottom: 1px solid rgba(63,197,240,.22); padding: 12px 20px 14px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <button onClick="{{ back }}" style="border: none; background: transparent; cursor: pointer; font: 700 15px 'Anuphan'; color: #fff; padding: 0;">← สมัครฝึกงาน</button>
+            <span style="display: flex; align-items: center; gap: 5px; background: rgba(255,196,46,.15); color: #FFC42E; font: 600 11px 'Anuphan'; padding: 4px 10px; border-radius: 999px;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#FFC42E" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> {{ savedLabel }}</span>
+          </div>
+          <div style="display: flex; gap: 4px; margin-bottom: 8px;">
+            <sc-for list="{{ segs }}" as="seg" hint-placeholder-count="8"><span style="flex: 1; height: 5px; border-radius: 999px; background: {{ seg.bg }};"></span></sc-for>
+          </div>
+          <div style="font: 600 12.5px 'Anuphan'; color: #A9B6D4;">{{ stepCounter }} · {{ stepName }}</div>
+        </div>
+
+        <!-- step body -->
+        <div class="scroll" style="flex: 1; overflow-y: auto; padding: 22px 20px;">
+
+          <sc-if value="{{ isStep0 }}">
+          <div>
+            <h2 style="font-family: 'Anuphan'; font-weight: 800; font-size: 23px; margin: 0 0 4px; color: #fff;">มาทำความรู้จักกันก่อน 👋</h2>
+            <p style="font-size: 13.5px; color: #A9B6D4; margin: 0 0 22px; line-height: 1.55;">ใช้เวลาประมาณ 2 นาที · ข้อมูลจะถูกบันทึกอัตโนมัติ</p>
+            <label class="lbl">โครงการที่สมัคร</label>
+            <div class="fld" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;"><span>Order Fulfillment Internship</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7E8DB0" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></div>
+            <label class="lbl">คำนำหน้า</label>
+            <div style="display: flex; gap: 8px; margin-bottom: 18px;">
+              <button data-value="นาย" onClick="{{ pickPrefix }}" style="cursor: pointer; border: 1.5px solid {{ pfxNaiBorder }}; background: {{ pfxNaiBg }}; color: {{ pfxNaiColor }}; font: 600 13px 'Anuphan'; padding: 10px 18px; border-radius: 12px;">นาย</button>
+              <button data-value="นางสาว" onClick="{{ pickPrefix }}" style="cursor: pointer; border: 1.5px solid {{ pfxNsBorder }}; background: {{ pfxNsBg }}; color: {{ pfxNsColor }}; font: 600 13px 'Anuphan'; padding: 10px 18px; border-radius: 12px;">นางสาว</button>
+              <button data-value="อื่น ๆ" onClick="{{ pickPrefix }}" style="cursor: pointer; border: 1.5px solid {{ pfxEtcBorder }}; background: {{ pfxEtcBg }}; color: {{ pfxEtcColor }}; font: 600 13px 'Anuphan'; padding: 10px 18px; border-radius: 12px;">อื่น ๆ</button>
+            </div>
+            <div style="display: flex; gap: 12px; margin-bottom: 18px;">
+              <div style="flex: 1;"><label class="lbl">ชื่อจริง</label><input class="fld" name="firstName" value="{{ form.firstName }}" onChange="{{ onInput }}" placeholder="ธนวัฒน์"></div>
+              <div style="flex: 1;"><label class="lbl">นามสกุล</label><input class="fld" name="lastName" value="{{ form.lastName }}" onChange="{{ onInput }}" placeholder="ใจดี"></div>
+            </div>
+            <label class="lbl">เบอร์มือถือ</label>
+            <input class="fld" name="phone" value="{{ form.phone }}" onChange="{{ onInput }}" placeholder="08X XXX XXXX" style="margin-bottom: 6px;">
+            <p style="font-size: 11.5px; margin: 0 0 18px; display: flex; align-items: center; gap: 5px; color: {{ phoneHintColor }};">{{ phoneHint }}</p>
+            <label class="lbl">Email</label>
+            <input class="fld" name="email" value="{{ form.email }}" onChange="{{ onInput }}" placeholder="you@email.com">
+            <p style="font-size: 11.5px; margin: 6px 0 0; color: {{ emailHintColor }};">{{ emailHint }}</p>
+          </div>
+          </sc-if>
+
+          <sc-if value="{{ isStep1 }}">
+          <div>
+            <h2 style="font-family: 'Anuphan'; font-weight: 800; font-size: 23px; margin: 0 0 4px; color: #fff;">ข้อมูลการศึกษา 🎓</h2>
+            <p style="font-size: 13.5px; color: #A9B6D4; margin: 0 0 22px; line-height: 1.55;">บอกเราว่าคุณเรียนที่ไหน สาขาอะไร</p>
+            <label class="lbl">มหาวิทยาลัย / สถาบัน</label>
+            <input class="fld" name="university" value="{{ form.university }}" onChange="{{ onInput }}" placeholder="เช่น จุฬาลงกรณ์มหาวิทยาลัย" style="margin-bottom: 18px;">
+            <label class="lbl">คณะ</label>
+            <input class="fld" name="faculty" value="{{ form.faculty }}" onChange="{{ onInput }}" placeholder="เช่น พาณิชยศาสตร์และการบัญชี" style="margin-bottom: 18px;">
+            <label class="lbl">สาขาวิชา</label>
+            <input class="fld" name="major" value="{{ form.major }}" onChange="{{ onInput }}" placeholder="เช่น การจัดการโลจิสติกส์" style="margin-bottom: 18px;">
+            <div style="display: flex; gap: 12px;">
+              <div style="flex: 1;"><label class="lbl">ชั้นปี</label><input class="fld" name="year" value="{{ form.year }}" onChange="{{ onInput }}" placeholder="เช่น 3"></div>
+              <div style="flex: 1;"><label class="lbl">เกรดเฉลี่ย (GPAX)</label><input class="fld" name="gpa" value="{{ form.gpa }}" onChange="{{ onInput }}" placeholder="เช่น 3.25"></div>
+            </div>
+          </div>
+          </sc-if>
+
+          <sc-if value="{{ isStep2 }}">
+          <div>
+            <h2 style="font-family: 'Anuphan'; font-weight: 800; font-size: 23px; margin: 0 0 4px; color: #fff;">อาจารย์ผู้ประสานงาน 📞</h2>
+            <p style="font-size: 13.5px; color: #A9B6D4; margin: 0 0 22px; line-height: 1.55;">ผู้ที่มหาวิทยาลัยมอบหมายให้ดูแลการฝึกงาน</p>
+            <label class="lbl">ชื่อ–นามสกุล อาจารย์</label>
+            <input class="fld" name="coordName" value="{{ form.coordName }}" onChange="{{ onInput }}" placeholder="เช่น อ.สมชาย รักเรียน" style="margin-bottom: 18px;">
+            <label class="lbl">เบอร์ติดต่อ</label>
+            <input class="fld" name="coordPhone" value="{{ form.coordPhone }}" onChange="{{ onInput }}" placeholder="0X XXX XXXX" style="margin-bottom: 18px;">
+            <label class="lbl">อีเมลอาจารย์</label>
+            <input class="fld" name="coordEmail" value="{{ form.coordEmail }}" onChange="{{ onInput }}" placeholder="advisor@university.ac.th">
+          </div>
+          </sc-if>
+
+          <sc-if value="{{ isStep3 }}">
+          <div>
+            <h2 style="font-family: 'Anuphan'; font-weight: 800; font-size: 23px; margin: 0 0 4px; color: #fff;">ทักษะ & กิจกรรม ✨</h2>
+            <p style="font-size: 13.5px; color: #A9B6D4; margin: 0 0 20px; line-height: 1.55;">เลือกทักษะที่ใช่ แล้วเล่าประสบการณ์สั้น ๆ</p>
+            <label class="lbl">ทักษะเด่น (เลือกได้หลายข้อ)</label>
+            <div ref="{{ skillsRef }}" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px;">
+              <button data-value="Excel / Data" onClick="{{ toggleSkill }}" style="cursor: pointer; border: 1.5px solid rgba(63,197,240,.3); background: #12244F; color: #C4CEE6; font: 500 13px 'Anuphan'; padding: 9px 15px; border-radius: 999px;">Excel / Data</button>
+              <button data-value="สื่อสาร" onClick="{{ toggleSkill }}" style="cursor: pointer; border: 1.5px solid rgba(63,197,240,.3); background: #12244F; color: #C4CEE6; font: 500 13px 'Anuphan'; padding: 9px 15px; border-radius: 999px;">สื่อสาร</button>
+              <button data-value="ทำงานเป็นทีม" onClick="{{ toggleSkill }}" style="cursor: pointer; border: 1.5px solid rgba(63,197,240,.3); background: #12244F; color: #C4CEE6; font: 500 13px 'Anuphan'; padding: 9px 15px; border-radius: 999px;">ทำงานเป็นทีม</button>
+              <button data-value="ภาษาอังกฤษ" onClick="{{ toggleSkill }}" style="cursor: pointer; border: 1.5px solid rgba(63,197,240,.3); background: #12244F; color: #C4CEE6; font: 500 13px 'Anuphan'; padding: 9px 15px; border-radius: 999px;">ภาษาอังกฤษ</button>
+              <button data-value="แก้ปัญหา" onClick="{{ toggleSkill }}" style="cursor: pointer; border: 1.5px solid rgba(63,197,240,.3); background: #12244F; color: #C4CEE6; font: 500 13px 'Anuphan'; padding: 9px 15px; border-radius: 999px;">แก้ปัญหา</button>
+              <button data-value="คลังสินค้า" onClick="{{ toggleSkill }}" style="cursor: pointer; border: 1.5px solid rgba(63,197,240,.3); background: #12244F; color: #C4CEE6; font: 500 13px 'Anuphan'; padding: 9px 15px; border-radius: 999px;">คลังสินค้า</button>
+            </div>
+            <label class="lbl">ประสบการณ์ / กิจกรรมเด่น</label>
+            <textarea class="fld" name="activities" value="{{ form.activities }}" onChange="{{ onInput }}" rows="4" placeholder="เช่น เคยเป็นประธานชมรม, ฝึกงานร้านค้า, โครงงาน..." style="resize: none;"></textarea>
+          </div>
+          </sc-if>
+
+          <sc-if value="{{ isStep4 }}">
+          <div>
+            <h2 style="font-family: 'Anuphan'; font-weight: 800; font-size: 23px; margin: 0 0 4px; color: #fff;">ความพร้อมฝึกงาน 📅</h2>
+            <p style="font-size: 13.5px; color: #A9B6D4; margin: 0 0 20px; line-height: 1.55;">ช่วงเวลาและสาขาที่สะดวก</p>
+            <label class="lbl">พร้อมเริ่มฝึกวันที่</label>
+            <input class="fld" name="availableFrom" value="{{ form.availableFrom }}" onChange="{{ onInput }}" placeholder="เช่น 1 ต.ค. 2569" style="margin-bottom: 18px;">
+            <label class="lbl">สาขา Makro ที่สะดวก</label>
+            <input class="fld" name="preferBranch" value="{{ form.preferBranch }}" onChange="{{ onInput }}" placeholder="เช่น แม็คโคร สาขาลาดพร้าว" style="margin-bottom: 18px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; background: #12244F; border: 1px solid rgba(63,197,240,.22); border-radius: 14px; padding: 14px 16px;">
+              <div><div style="font: 600 14px 'Anuphan'; color: #fff;">มีพาหนะส่วนตัว</div><div style="font-size: 12px; color: #A9B6D4;">สะดวกเดินทางไปสาขา</div></div>
+              <button onClick="{{ toggleVehicle }}" style="cursor: pointer; border: none; width: 52px; height: 30px; border-radius: 999px; background: {{ vehicleTrack }}; position: relative; transition: background .2s;"><span style="position: absolute; top: 3px; left: {{ vehicleKnob }}; width: 24px; height: 24px; background: #fff; border-radius: 50%; transition: left .2s;"></span></button>
+            </div>
+          </div>
+          </sc-if>
+
+          <sc-if value="{{ isStep5 }}">
+          <div>
+            <h2 style="font-family: 'Anuphan'; font-weight: 800; font-size: 23px; margin: 0 0 4px; color: #fff;">แนบเอกสารกันหน่อย 📎</h2>
+            <p style="font-size: 13.5px; color: #A9B6D4; margin: 0 0 22px; line-height: 1.55;">ไฟล์ละไม่เกิน 5MB · รองรับ PDF / รูปภาพ</p>
+            <div style="background: #12244F; border: 1.5px solid rgba(63,197,240,.22); border-radius: 18px; padding: 14px; display: flex; gap: 14px; align-items: center; margin-bottom: 12px;">
+              <div style="flex: 0 0 56px; height: 70px; border-radius: 10px; overflow: hidden; background: #0A1730;"><image-slot id="p-photo" shape="rect" placeholder="รูป"></image-slot></div>
+              <div style="flex: 1;"><div style="font: 700 14px 'Anuphan'; color: #fff;">รูปถ่ายหน้าตรง</div><div style="font-size: 12px; color: #A9B6D4; margin-top: 3px;">แตะที่กรอบเพื่อวางรูป</div></div>
+            </div>
+            <div style="background: rgba(226,35,26,.06); border: 1.5px dashed #E2231A; border-radius: 18px; padding: 22px; text-align: center; margin-bottom: 12px;">
+              <div style="width: 44px; height: 44px; background: rgba(226,35,26,.15); border-radius: 12px; display: grid; place-items: center; margin: 0 auto 10px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FF5A50" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg></div>
+              <div style="font: 700 14px 'Anuphan'; color: #fff;">Resume / ประวัติส่วนตัว</div>
+              <div style="font-size: 12px; color: #A9B6D4; margin-top: 3px;">แตะเพื่อเลือกไฟล์ · PDF, DOC</div>
+            </div>
+            <div style="background: rgba(63,197,240,.05); border: 1.5px dashed rgba(63,197,240,.4); border-radius: 18px; padding: 22px; text-align: center; margin-bottom: 12px;">
+              <div style="width: 44px; height: 44px; background: rgba(63,197,240,.12); border-radius: 12px; display: grid; place-items: center; margin: 0 auto 10px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3FC5F0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z M14 2v6h6"/></svg></div>
+              <div style="font: 700 14px 'Anuphan'; color: #fff;">Transcript</div>
+              <div style="font-size: 12px; color: #A9B6D4; margin-top: 3px;">แตะเพื่อเลือกไฟล์ · PDF, รูป</div>
+            </div>
+            <div style="background: rgba(255,196,46,.1); border: 1px solid rgba(255,196,46,.35); border-radius: 14px; padding: 13px 15px; font-size: 12px; color: #FFD873; line-height: 1.5; display: flex; gap: 9px;"><span>💡</span> Portfolio และหนังสือขอฝึกงาน แนบทีหลังได้ ไม่บังคับตอนนี้</div>
+          </div>
+          </sc-if>
+
+          <sc-if value="{{ isStep6 }}">
+          <div>
+            <h2 style="font-family: 'Anuphan'; font-weight: 800; font-size: 23px; margin: 0 0 4px; color: #fff;">รู้จักโครงการจากไหน? 📣</h2>
+            <p style="font-size: 13.5px; color: #A9B6D4; margin: 0 0 20px; line-height: 1.55;">เลือกได้หลายช่องทาง ช่วยให้เราปรับปรุงการสื่อสาร</p>
+            <div ref="{{ sourceRef }}" style="display: flex; flex-direction: column; gap: 10px;">
+              <button data-value="Facebook" onClick="{{ toggleSource }}" style="text-align: left; cursor: pointer; border: 1.5px solid rgba(63,197,240,.3); background: #12244F; color: #C4CEE6; font: 500 14px 'Anuphan'; padding: 14px 16px; border-radius: 14px;">Facebook / Instagram</button>
+              <button data-value="TikTok" onClick="{{ toggleSource }}" style="text-align: left; cursor: pointer; border: 1.5px solid rgba(63,197,240,.3); background: #12244F; color: #C4CEE6; font: 500 14px 'Anuphan'; padding: 14px 16px; border-radius: 14px;">TikTok</button>
+              <button data-value="มหาวิทยาลัย" onClick="{{ toggleSource }}" style="text-align: left; cursor: pointer; border: 1.5px solid rgba(63,197,240,.3); background: #12244F; color: #C4CEE6; font: 500 14px 'Anuphan'; padding: 14px 16px; border-radius: 14px;">ประกาศจากมหาวิทยาลัย</button>
+              <button data-value="เพื่อน/รุ่นพี่" onClick="{{ toggleSource }}" style="text-align: left; cursor: pointer; border: 1.5px solid rgba(63,197,240,.3); background: #12244F; color: #C4CEE6; font: 500 14px 'Anuphan'; padding: 14px 16px; border-radius: 14px;">เพื่อน / รุ่นพี่แนะนำ</button>
+              <button data-value="Roadshow" onClick="{{ toggleSource }}" style="text-align: left; cursor: pointer; border: 1.5px solid rgba(63,197,240,.3); background: #12244F; color: #C4CEE6; font: 500 14px 'Anuphan'; padding: 14px 16px; border-radius: 14px;">งาน Roadshow / บูธ</button>
+            </div>
+          </div>
+          </sc-if>
+
+          <sc-if value="{{ isStep7 }}">
+          <div>
+            <h2 style="font-family: 'Anuphan'; font-weight: 800; font-size: 23px; margin: 0 0 4px; color: #fff;">ขั้นตอนสุดท้าย 🔒</h2>
+            <p style="font-size: 13.5px; color: #A9B6D4; margin: 0 0 20px; line-height: 1.55;">ตรวจสอบและยินยอมให้เราเก็บข้อมูล</p>
+            <div style="background: #12244F; border: 1px solid rgba(63,197,240,.22); border-radius: 16px; padding: 16px 18px; margin-bottom: 18px;">
+              <div style="font: 700 14px 'Anuphan'; color: #fff; margin-bottom: 10px;">สรุปใบสมัคร</div>
+              <div style="display: flex; justify-content: space-between; font-size: 13px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,.08);"><span style="color: #A9B6D4;">ชื่อ</span><span style="color: #fff;">{{ summaryName }}</span></div>
+              <div style="display: flex; justify-content: space-between; font-size: 13px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,.08);"><span style="color: #A9B6D4;">โครงการ</span><span style="color: #fff;">Order Fulfillment</span></div>
+              <div style="display: flex; justify-content: space-between; font-size: 13px; padding: 6px 0;"><span style="color: #A9B6D4;">ติดต่อ</span><span style="color: #fff;">{{ summaryContact }}</span></div>
+            </div>
+            <button onClick="{{ toggleConsent }}" style="width: 100%; text-align: left; cursor: pointer; display: flex; gap: 12px; align-items: flex-start; background: {{ consentBg }}; border: 1.5px solid {{ consentBorder }}; border-radius: 16px; padding: 16px;">
+              <span style="flex: 0 0 24px; height: 24px; border-radius: 7px; border: 2px solid {{ consentBox }}; background: {{ consentBoxBg }}; display: grid; place-items: center; margin-top: 1px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0A1A3F" stroke-width="3.5" style="opacity: {{ consentTickOpacity }};"><path d="M20 6L9 17l-5-5"/></svg></span>
+              <span style="font-size: 13px; line-height: 1.55; color: #EAF0FF;">ข้าพเจ้ายินยอมให้บริษัทเก็บและใช้ข้อมูลส่วนบุคคลเพื่อการพิจารณารับสมัครฝึกงาน ตาม <span style="color: #3FC5F0; text-decoration: underline;">ประกาศความเป็นส่วนตัว (PDPA)</span></span>
+            </button>
+          </div>
+          </sc-if>
+        </div>
+
+        <!-- bottom nav -->
+        <div style="flex: 0 0 auto; padding: 16px 20px 22px; display: flex; gap: 12px; border-top: 1px solid rgba(63,197,240,.15); background: #0A1730;">
+          <button onClick="{{ back }}" style="flex: 0 0 auto; width: 52px; height: 52px; background: #12244F; border: 1.5px solid rgba(63,197,240,.25); border-radius: 16px; display: grid; place-items: center; cursor: pointer;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
+          <sc-if value="{{ isLastStep }}">
+          <button onClick="{{ submit }}" style="flex: 1; border: none; cursor: {{ submitCursor }}; background: {{ submitBg }}; color: #fff; font: 700 16px 'Anuphan'; text-align: center; padding: 16px; border-radius: 16px; box-shadow: 0 0 24px -6px rgba(226,35,26,.7);">ส่งใบสมัคร ✓</button>
+          </sc-if>
+          <sc-if value="{{ notLastStep }}" hint-placeholder-val="{{ true }}">
+          <button onClick="{{ next }}" style="flex: 1; border: none; cursor: pointer; background: linear-gradient(150deg,#E2231A,#B4160F); color: #fff; font: 700 16px 'Anuphan'; text-align: center; padding: 16px; border-radius: 16px; box-shadow: 0 0 24px -6px rgba(226,35,26,.7);">ถัดไป →</button>
+          </sc-if>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ================= TRACK ================= -->
+      <sc-if value="{{ isTrack }}">
+      <div class="scroll" style="flex: 1; overflow-y: auto; padding: 8px 20px 26px;">
+        <sc-if value="{{ trackFound }}" hint-placeholder-val="{{ false }}">
+        <div>
+          <div style="background: linear-gradient(150deg, #E2231A, #B4160F); border-radius: 24px; padding: 22px; color: #fff; margin-bottom: 20px; box-shadow: 0 0 34px -8px rgba(226,35,26,.6); position: relative; overflow: hidden;">
+            <svg style="position: absolute; top: -14px; right: -6px; opacity: .3;" width="80" height="80" viewBox="0 0 100 100" fill="none" stroke="#fff" stroke-width="3"><path d="M50 4l40 23v46L50 96 10 73V27z"/></svg>
+            <div style="font: 600 12px 'Anuphan'; color: rgba(255,255,255,.85); margin-bottom: 4px;">รหัสติดตามใบสมัคร</div>
+            <div style="font-family: 'Anuphan'; font-weight: 800; font-size: 24px; letter-spacing: 0.5px;">{{ trackCode }}</div>
+            <div style="font-size: 13px; color: rgba(255,255,255,.9); margin-top: 6px;">{{ trackWho }} · Order Fulfillment</div>
+          </div>
+          <div style="background: rgba(255,196,46,.12); border: 1px solid rgba(255,196,46,.3); border-radius: 16px; padding: 16px 18px; display: flex; align-items: center; gap: 12px; margin-bottom: 24px;"><div style="flex: 0 0 40px; height: 40px; background: #FFC42E; border-radius: 50%; display: grid; place-items: center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0A1A3F" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div><div><div style="font: 700 15px 'Anuphan'; color: #FFD873;">ผ่านการคัดกรองเบื้องต้น</div><div style="font-size: 12px; color: #C4CEE6;">ทีม TA จะติดต่อกลับเร็ว ๆ นี้</div></div></div>
+          <div style="position: relative; padding-left: 8px;">
+            <div style="position: absolute; left: 21px; top: 14px; bottom: 30px; width: 2px; background: rgba(255,255,255,.12);"></div>
+            <div style="display: flex; gap: 16px; margin-bottom: 20px; position: relative;"><div style="flex: 0 0 28px; height: 28px; background: #FFC42E; border-radius: 50%; display: grid; place-items: center; z-index: 1;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0A1A3F" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div><div><div style="font: 700 14px 'Anuphan'; color: #fff;">ส่งใบสมัคร</div><div style="font-size: 12px; color: #7E8DB0;">18 ส.ค. 2026 · 14:32</div></div></div>
+            <div style="display: flex; gap: 16px; margin-bottom: 20px; position: relative;"><div style="flex: 0 0 28px; height: 28px; background: #FFC42E; border-radius: 50%; display: grid; place-items: center; z-index: 1;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0A1A3F" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div><div><div style="font: 700 14px 'Anuphan'; color: #fff;">คัดเลือกใบสมัคร</div><div style="font-size: 12px; color: #7E8DB0;">18 ส.ค. 2026 · 14:33</div></div></div>
+            <div style="display: flex; gap: 16px; margin-bottom: 20px; position: relative;"><div style="flex: 0 0 28px; height: 28px; background: #E2231A; border-radius: 50%; display: grid; place-items: center; z-index: 1; box-shadow: 0 0 0 5px rgba(226,35,26,.2);"><span style="width: 9px; height: 9px; background: #fff; border-radius: 50%;"></span></div><div><div style="font: 700 14px 'Anuphan'; color: #FF5A50;">รอนัดสัมภาษณ์</div><div style="font-size: 12px; color: #7E8DB0;">กำลังดำเนินการ</div></div></div>
+            <div style="display: flex; gap: 16px; position: relative;"><div style="flex: 0 0 28px; height: 28px; background: #12244F; border: 2px solid rgba(255,255,255,.15); border-radius: 50%; z-index: 1;"></div><div><div style="font: 700 14px 'Anuphan'; color: #5A6890;">ผลการพิจารณา</div></div></div>
+          </div>
+        </div>
+        </sc-if>
+        <sc-if value="{{ trackNotFound }}" hint-placeholder-val="{{ true }}">
+        <div>
+          <p style="font: 700 12px 'Anuphan'; letter-spacing: 1px; text-transform: uppercase; color: #FFC42E; margin: 8px 0 6px;">ติดตามสถานะ</p>
+          <h2 style="font-family: 'Anuphan'; font-weight: 800; font-size: 23px; margin: 0 0 6px; color: #fff;">เช็คใบสมัครของคุณ</h2>
+          <p style="font-size: 13.5px; color: #A9B6D4; margin: 0 0 24px; line-height: 1.55;">กรอกรหัสติดตามและอีเมลที่ใช้สมัคร</p>
+          <label class="lbl">รหัสติดตาม</label>
+          <input class="fld" name="lookupCode" value="{{ form.lookupCode }}" onChange="{{ onInput }}" placeholder="เช่น MKR-INT-2026-0042" style="margin-bottom: 16px;">
+          <label class="lbl">อีเมล</label>
+          <input class="fld" name="lookupEmail" value="{{ form.lookupEmail }}" onChange="{{ onInput }}" placeholder="you@email.com" style="margin-bottom: 22px;">
+          <button onClick="{{ doLookup }}" style="width: 100%; border: none; cursor: pointer; background: linear-gradient(150deg,#E2231A,#B4160F); color: #fff; font: 700 16px 'Anuphan'; padding: 16px; border-radius: 16px; box-shadow: 0 0 24px -6px rgba(226,35,26,.7);">ค้นหา</button>
+          <p style="text-align: center; font-size: 12px; color: #5A6890; margin: 16px 0 0;">ยังไม่ได้สมัคร? <span onClick="{{ goApply }}" style="color: #3FC5F0; cursor: pointer;">สมัครฝึกงาน</span></p>
+        </div>
+        </sc-if>
+      </div>
+      </sc-if>
+
+      <!-- ================= TAB BAR ================= -->
+      <sc-if value="{{ showTabs }}" hint-placeholder-val="{{ true }}">
+      <div style="flex: 0 0 auto; position: absolute; left: 0; right: 0; bottom: 0; display: flex; background: rgba(8,20,45,.92); border-top: 1px solid rgba(63,197,240,.18); padding: 10px 8px 18px; backdrop-filter: blur(8px);">
+        <button onClick="{{ goLanding }}" style="flex: 1; border: none; background: transparent; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; color: {{ tabHomeColor }};"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/></svg><span style="font: 600 10px 'Anuphan';">หน้าแรก</span></button>
+        <button onClick="{{ goJourney }}" style="flex: 1; border: none; background: transparent; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; color: {{ tabJourneyColor }};"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg><span style="font: 600 10px 'Anuphan';">เส้นทาง</span></button>
+        <button onClick="{{ goApply }}" style="flex: 1; border: none; background: transparent; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px;"><span style="width: 40px; height: 40px; margin-top: -14px; background: linear-gradient(150deg,#E2231A,#B4160F); border-radius: 14px; display: grid; place-items: center; box-shadow: 0 0 18px -4px rgba(226,35,26,.8);"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span><span style="font: 600 10px 'Anuphan'; color: #FF5A50;">สมัคร</span></button>
+        <button onClick="{{ goTrack }}" style="flex: 1; border: none; background: transparent; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; color: {{ tabTrackColor }};"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg><span style="font: 600 10px 'Anuphan';">ติดตาม</span></button>
+      </div>
+      </sc-if>
+
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 440, &quot;height&quot;: 980}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem('ofm-draft') || '{}'); } catch (e) {}
+    this.state = {
+      screen: 'landing',
+      step: 0,
+      prefix: saved.prefix || '',
+      vehicle: !!saved.vehicle,
+      consent: false,
+      skills: saved.skills || [],
+      sources: saved.sources || [],
+      form: saved.form || {},
+      submitted: false,
+      trackFound: false,
+      trackCode: '',
+      savedLabel: 'บันทึกร่างแล้ว'
+    };
+    this.carRef = React.createRef();
+    this.promoRef = React.createRef();
+    this.skillsRef = React.createRef();
+    this.sourceRef = React.createRef();
+  }
+
+  paintChips() {
+    const apply = (root, selected) => {
+      if (!root) return;
+      root.querySelectorAll('button[data-value]').forEach(b => {
+        const on = selected.includes(b.dataset.value);
+        b.style.background = on ? 'linear-gradient(150deg,#E2231A,#B4160F)' : '#12244F';
+        b.style.borderColor = on ? '#E2231A' : 'rgba(63,197,240,.3)';
+        b.style.color = on ? '#fff' : '#C4CEE6';
+      });
+    };
+    apply(this.skillsRef.current, this.state.skills);
+    apply(this.sourceRef.current, this.state.sources);
+  }
+
+  persist() {
+    const s = this.state;
+    try {
+      localStorage.setItem('ofm-draft', JSON.stringify({
+        prefix: s.prefix, vehicle: s.vehicle, skills: s.skills, sources: s.sources, form: s.form
+      }));
+    } catch (e) {}
+  }
+
+  startCarousel() {
+    clearInterval(this._timer);
+    const roots = [this.carRef.current, this.promoRef.current].filter(Boolean);
+    const groups = roots
+      .map(r => ({ slides: r.querySelectorAll('[data-slide]'), dots: r.querySelectorAll('[data-dot]') }))
+      .filter(g => g.slides.length);
+    if (!groups.length) return;
+    const count = Math.max(...groups.map(g => g.slides.length));
+    let i = 0;
+    const show = (n) => groups.forEach(({ slides, dots }) => {
+      slides.forEach((s, k) => { s.style.opacity = k === n ? '1' : '0'; });
+      dots.forEach((d, k) => {
+        d.style.background = k === n ? '#FFC42E' : 'rgba(255,255,255,.35)';
+        d.style.width = k === n ? '20px' : '7px';
+      });
+    });
+    show(0);
+    this._timer = setInterval(() => { i = (i + 1) % count; show(i); }, 2800);
+  }
+
+  componentDidMount() { this.startCarousel(); this.paintChips(); }
+  componentDidUpdate() { this.startCarousel(); this.paintChips(); }
+  componentWillUnmount() { clearInterval(this._timer); }
+
+  onInput = (e) => {
+    const { name, value } = e.target;
+    this.setState(s => ({ form: { ...s.form, [name]: value } }), () => this.persist());
+  };
+  pickPrefix = (e) => { const v = e.currentTarget.dataset.value; this.setState({ prefix: v }, () => this.persist()); };
+  toggleVehicle = () => this.setState(s => ({ vehicle: !s.vehicle }), () => this.persist());
+  toggleConsent = () => this.setState(s => ({ consent: !s.consent }));
+  toggleSkill = (e) => {
+    const v = e.currentTarget.dataset.value;
+    this.setState(s => ({ skills: s.skills.includes(v) ? s.skills.filter(x => x !== v) : [...s.skills, v] }), () => this.persist());
+  };
+  toggleSource = (e) => {
+    const v = e.currentTarget.dataset.value;
+    this.setState(s => ({ sources: s.sources.includes(v) ? s.sources.filter(x => x !== v) : [...s.sources, v] }), () => this.persist());
+  };
+
+  next = () => this.setState(s => ({ step: Math.min(7, s.step + 1) }));
+  back = () => this.setState(s => {
+    if (s.step > 0 && s.screen === 'apply') return { step: s.step - 1 };
+    return { screen: 'landing' };
+  });
+  goLanding = () => this.setState({ screen: 'landing' });
+  goJourney = () => this.setState({ screen: 'journey' });
+  goApply = () => this.setState({ screen: 'apply', step: 0 });
+  goTrack = () => this.setState({ screen: 'track' });
+  doLookup = () => this.setState(s => ({
+    trackFound: true,
+    trackCode: 'MKR-INT-2026-0042',
+    _who: (s.form.firstName || 'ผู้สมัคร') + ' ' + (s.form.lastName || '')
+  }));
+  submit = () => {
+    if (!this.state.consent) return;
+    this.setState(s => ({
+      screen: 'track', trackFound: true,
+      trackCode: 'MKR-INT-2026-' + String(Math.floor(1000 + Math.random() * 8999)).slice(0, 4),
+      _who: (s.form.firstName || 'ผู้สมัคร') + ' ' + (s.form.lastName || ''),
+      submitted: true
+    }));
+  };
+
+  chip(active, activeBg, activeBorder) {
+    return active
+      ? { bg: activeBg, border: activeBorder, color: '#fff' }
+      : { bg: '#12244F', border: 'rgba(63,197,240,.25)', color: '#C4CEE6' };
+  }
+
+  renderVals() {
+    const s = this.state;
+    const f = s.form || {};
+    const phone = (f.phone || '').replace(/\D/g, '');
+    const phoneOk = /^0\d{9}$/.test(phone);
+    const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(f.email || '');
+    const stepNames = ['ข้อมูลส่วนตัว', 'การศึกษา', 'อาจารย์ผู้ประสานงาน', 'ทักษะ & กิจกรรม', 'ความพร้อม', 'เอกสารประกอบ', 'ช่องทางข่าว', 'ยินยอม PDPA'];
+    const segs = Array.from({ length: 8 }, (_, i) => ({
+      bg: i < s.step ? '#E2231A' : (i === s.step ? '#E2231A' : 'rgba(255,255,255,.12)')
+    }));
+    const pfx = (name) => this.chip(s.prefix === name, 'linear-gradient(150deg,#E2231A,#B4160F)', '#E2231A');
+    const pn = pfx('นาย'), pns = pfx('นางสาว'), pe = pfx('อื่น ๆ');
+    const who = (s._who || '').trim();
+
+    return {
+      isLanding: s.screen === 'landing',
+      isJourney: s.screen === 'journey',
+      isApply: s.screen === 'apply',
+      isTrack: s.screen === 'track',
+      showTabs: s.screen !== 'apply',
+      carRef: this.carRef,
+      promoRef: this.promoRef,
+      skillsRef: this.skillsRef,
+      sourceRef: this.sourceRef,
+      form: f,
+      onInput: this.onInput,
+      pickPrefix: this.pickPrefix,
+      toggleVehicle: this.toggleVehicle,
+      toggleConsent: this.toggleConsent,
+      toggleSkill: this.toggleSkill,
+      toggleSource: this.toggleSource,
+      next: this.next, back: this.back,
+      goLanding: this.goLanding, goJourney: this.goJourney, goApply: this.goApply, goTrack: this.goTrack,
+      doLookup: this.doLookup, submit: this.submit,
+      savedLabel: s.savedLabel,
+      segs,
+      stepCounter: 'ขั้นที่ ' + (s.step + 1) + ' จาก 8',
+      stepName: stepNames[s.step],
+      isStep0: s.step === 0, isStep1: s.step === 1, isStep2: s.step === 2, isStep3: s.step === 3,
+      isStep4: s.step === 4, isStep5: s.step === 5, isStep6: s.step === 6, isStep7: s.step === 7,
+      isLastStep: s.step === 7, notLastStep: s.step !== 7,
+      pfxNaiBg: pn.bg, pfxNaiBorder: pn.border, pfxNaiColor: pn.color,
+      pfxNsBg: pns.bg, pfxNsBorder: pns.border, pfxNsColor: pns.color,
+      pfxEtcBg: pe.bg, pfxEtcBorder: pe.border, pfxEtcColor: pe.color,
+      phoneHint: (f.phone ? (phoneOk ? '✓ เบอร์ถูกต้อง' : 'กรุณากรอกเบอร์ 10 หลัก') : 'เช่น 0812345678'),
+      phoneHintColor: f.phone ? (phoneOk ? '#FFC42E' : '#FF7A70') : '#5A6890',
+      emailHint: (f.email ? (emailOk ? '✓ อีเมลถูกต้อง' : 'รูปแบบอีเมลไม่ถูกต้อง') : ''),
+      emailHintColor: emailOk ? '#FFC42E' : '#FF7A70',
+      vehicleTrack: s.vehicle ? '#FFC42E' : '#2A3B63',
+      vehicleKnob: s.vehicle ? '25px' : '3px',
+      consentBg: s.consent ? 'rgba(255,196,46,.1)' : '#12244F',
+      consentBorder: s.consent ? 'rgba(255,196,46,.45)' : 'rgba(63,197,240,.22)',
+      consentBox: s.consent ? '#FFC42E' : '#5A6890',
+      consentBoxBg: s.consent ? '#FFC42E' : 'transparent',
+      consentTickOpacity: s.consent ? '1' : '0',
+      submitBg: s.consent ? 'linear-gradient(150deg,#E2231A,#B4160F)' : '#3A2020',
+      submitCursor: s.consent ? 'pointer' : 'not-allowed',
+      summaryName: (s.prefix ? s.prefix + ' ' : '') + (f.firstName || '—') + ' ' + (f.lastName || ''),
+      summaryContact: f.phone || f.email || '—',
+      trackFound: s.trackFound,
+      trackNotFound: !s.trackFound,
+      trackCode: s.trackCode,
+      trackWho: who || 'ผู้สมัคร',
+      tabHomeColor: s.screen === 'landing' ? '#FFC42E' : '#5A6890',
+      tabJourneyColor: s.screen === 'journey' ? '#FFC42E' : '#5A6890',
+      tabTrackColor: s.screen === 'track' ? '#FFC42E' : '#5A6890'
+    };
+  }
+}
+</script>
+</body>
+</html>
