@@ -1,74 +1,101 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchPrograms, submitApplication, type ApplyPayload } from '../lib/api';
 import { fileToBase64 } from '../lib/fileToBase64';
 import { CONSENT_VERSION, MAX_DOC_BYTES, TURNSTILE_SITE_KEY } from '../config';
 import Turnstile from '../components/Turnstile';
 
-const ERR_MSG: Record<string, string> = {
-  invalid_email: 'อีเมลไม่ถูกต้อง',
-  invalid_phone: 'เบอร์มือถือไม่ถูกต้อง (10 หลัก)',
-  invalid_gpa: 'GPAX ต้องอยู่ระหว่าง 0–4',
-  missing_name: 'กรุณากรอกชื่อ–นามสกุล',
-  missing_education: 'กรุณากรอกข้อมูลการศึกษา',
-  consent_required: 'กรุณายินยอม PDPA ก่อนส่ง',
-  captcha_failed: 'ยืนยันตัวตนไม่สำเร็จ กรุณาลองใหม่',
-};
-
 const DRAFT_KEY = 'ofm-draft';
 const STEP_NAMES = ['ข้อมูลส่วนตัว', 'การศึกษา', 'อาจารย์ผู้ประสานงาน', 'ทักษะ & กิจกรรม', 'ความพร้อม', 'เอกสาร', 'ช่องทางข่าว', 'ยืนยัน (PDPA)'];
 const SKILLS = ['Excel / Data', 'สื่อสาร', 'ทำงานเป็นทีม', 'ภาษาอังกฤษ', 'แก้ปัญหา', 'คลังสินค้า'];
 const SOURCES = ['Facebook / Instagram', 'TikTok', 'ประกาศจากมหาวิทยาลัย', 'เพื่อน / รุ่นพี่แนะนำ', 'งาน Roadshow / บูธ'];
-const PREFIXES = ['นาย', 'นางสาว', 'อื่น ๆ'];
+const PREFIXES = ['นาย', 'นาง', 'นางสาว', 'อื่น ๆ'];
+const EDU_LEVELS = ['ปวช.', 'ปวส.', 'ปริญญาตรี', 'ปริญญาโท', 'อื่น ๆ'];
+const TRANSPORT = [
+  { v: 'car', label: 'รถยนต์' },
+  { v: 'motorcycle', label: 'รถจักรยานยนต์' },
+  { v: 'public_transport', label: 'รถสาธารณะ' },
+];
+
+const NOW = new Date();
+const TODAY_ISO = NOW.toISOString().slice(0, 10);
+const CUR_BE = NOW.getFullYear() + 543;
+const GRAD_YEARS = Array.from({ length: 7 }, (_, i) => String(CUR_BE + i));
+
+const thaiRe = /^[฀-๿\s.\-]+$/;
+const enRe = /^[A-Za-z\s.'\-]+$/;
+const emailRe = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
+function fmtPhone(raw: string) {
+  const p = (raw || '').replace(/\D/g, '').slice(0, 10);
+  if (p.length <= 3) return p;
+  if (p.length <= 6) return `${p.slice(0, 3)}-${p.slice(3)}`;
+  return `${p.slice(0, 3)}-${p.slice(3, 6)}-${p.slice(6)}`;
+}
 
 interface FormData {
   prefix: string;
+  prefixOther: string;
   firstName: string;
   lastName: string;
+  firstNameEn: string;
+  lastNameEn: string;
   phone: string;
+  lineId: string;
   email: string;
+  birthDate: string;
+  eduLevel: string;
   university: string;
   faculty: string;
   major: string;
   year: string;
   gpa: string;
+  graduationYearBE: string;
   coordName: string;
   coordPhone: string;
   coordEmail: string;
   skills: string[];
+  skillUsage: string;
   activities: string;
   availableFrom: string;
+  availableTo: string;
   preferBranch: string;
-  vehicle: boolean;
+  transport: string[];
   sources: string[];
 }
 
 const EMPTY: FormData = {
-  prefix: '', firstName: '', lastName: '', phone: '', email: '',
-  university: '', faculty: '', major: '', year: '', gpa: '',
+  prefix: '', prefixOther: '', firstName: '', lastName: '', firstNameEn: '', lastNameEn: '',
+  phone: '', lineId: '', email: '', birthDate: '',
+  eduLevel: '', university: '', faculty: '', major: '', year: '', gpa: '', graduationYearBE: '',
   coordName: '', coordPhone: '', coordEmail: '',
-  skills: [], activities: '', availableFrom: '', preferBranch: '', vehicle: false, sources: [],
+  skills: [], skillUsage: '', activities: '',
+  availableFrom: '', availableTo: '', preferBranch: '', transport: [], sources: [],
 };
 
-const phoneOk = (v: string) => /^0\d{9}$/.test(v);
-const emailOk = (v: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v);
+const ERR_MSG: Record<string, string> = {
+  duplicate: 'อีเมลนี้เคยสมัครโครงการนี้แล้ว',
+  captcha_failed: 'ยืนยันตัวตนไม่สำเร็จ กรุณาลองใหม่',
+  invalid_email: 'อีเมลไม่ถูกต้อง',
+  invalid_phone: 'เบอร์มือถือไม่ถูกต้อง',
+};
 
 export default function Apply() {
   const nav = useNavigate();
   const [data, setData] = useState<FormData>(EMPTY);
   const [step, setStep] = useState(0);
+  const [attempted, setAttempted] = useState(false);
   const [consent, setConsent] = useState(false);
   const [photo, setPhoto] = useState<File | null>(null);
   const [resume, setResume] = useState<File | null>(null);
   const [transcript, setTranscript] = useState<File | null>(null);
   const [captchaToken, setCaptchaToken] = useState('');
   const [programId, setProgramId] = useState('');
-  const [programName, setProgramName] = useState('Order Fulfillment Internship');
+  const [programName, setProgramName] = useState('Order Fulfillment Internship Program');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<{ trackingCode: string } | null>(null);
 
-  // restore draft
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(DRAFT_KEY) || '{}');
@@ -79,24 +106,24 @@ export default function Apply() {
     fetchPrograms().then((r) => {
       if (r.ok && r.programs && r.programs.length) {
         setProgramId(r.programs[0].programId);
-        setProgramName(r.programs[0].name || 'Order Fulfillment Internship');
+        setProgramName(r.programs[0].name || 'Order Fulfillment Internship Program');
       }
     });
   }, []);
 
   function upd<K extends keyof FormData>(key: K, value: FormData[K]) {
     setData((d) => {
-      const nextData = { ...d, [key]: value };
+      const next = { ...d, [key]: value };
       try {
-        localStorage.setItem(DRAFT_KEY, JSON.stringify(nextData));
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(next));
       } catch {
         /* ignore */
       }
-      return nextData;
+      return next;
     });
   }
-  const onInput = (key: keyof FormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => upd(key, e.target.value as never);
-  const toggleArr = (key: 'skills' | 'sources', v: string) => {
+  const onInput = (key: keyof FormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => upd(key, e.target.value as never);
+  const toggleArr = (key: 'skills' | 'sources' | 'transport', v: string) => {
     const arr = data[key];
     upd(key, (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]) as never);
   };
@@ -114,26 +141,87 @@ export default function Apply() {
     };
   }
 
-  function validateForSubmit(): { ok: boolean; step?: number; msg?: string } {
-    if (!programId) return { ok: false, step: 0, msg: 'ยังไม่มีโครงการเปิดรับ' };
-    if (!data.firstName.trim() || !data.lastName.trim()) return { ok: false, step: 0, msg: 'กรุณากรอกชื่อ–นามสกุล' };
-    if (!phoneOk(data.phone)) return { ok: false, step: 0, msg: 'เบอร์มือถือไม่ถูกต้อง (10 หลัก)' };
-    if (!emailOk(data.email)) return { ok: false, step: 0, msg: 'อีเมลไม่ถูกต้อง' };
-    if (!data.university.trim()) return { ok: false, step: 1, msg: 'กรุณากรอกมหาวิทยาลัย' };
-    if (!photo) return { ok: false, step: 5, msg: 'กรุณาแนบรูปถ่ายหน้าตรง' };
-    if (!resume) return { ok: false, step: 5, msg: 'กรุณาแนบ Resume' };
-    if (!transcript) return { ok: false, step: 5, msg: 'กรุณาแนบ Transcript' };
-    if (!consent) return { ok: false, step: 7, msg: 'กรุณายินยอมตามประกาศความเป็นส่วนตัว (PDPA)' };
-    if (TURNSTILE_SITE_KEY && !captchaToken) return { ok: false, step: 7, msg: 'กรุณายืนยันว่าไม่ใช่บอท' };
-    return { ok: true };
+  // ตรวจ error ของแต่ละ step → object { field: message }
+  function stepErrors(s: number): Record<string, string> {
+    const f = data;
+    const e: Record<string, string> = {};
+    const req = (v: string) => !(v && String(v).trim());
+    if (s === 0) {
+      if (!f.prefix) e.prefix = 'กรุณาเลือกคำนำหน้า';
+      if (f.prefix === 'อื่น ๆ' && req(f.prefixOther)) e.prefixOther = 'กรุณาระบุคำนำหน้าชื่อ';
+      if (req(f.firstName)) e.firstName = 'กรุณากรอกชื่อจริง';
+      else if (!thaiRe.test(f.firstName)) e.firstName = 'กรอกเฉพาะตัวอักษรภาษาไทย';
+      if (req(f.lastName)) e.lastName = 'กรุณากรอกนามสกุล';
+      else if (!thaiRe.test(f.lastName)) e.lastName = 'กรอกเฉพาะตัวอักษรภาษาไทย';
+      if (req(f.firstNameEn)) e.firstNameEn = 'กรุณากรอกชื่อภาษาอังกฤษ';
+      else if (!enRe.test(f.firstNameEn)) e.firstNameEn = 'กรอกเฉพาะตัวอักษรภาษาอังกฤษ';
+      if (req(f.lastNameEn)) e.lastNameEn = 'กรุณากรอกนามสกุลภาษาอังกฤษ';
+      else if (!enRe.test(f.lastNameEn)) e.lastNameEn = 'กรอกเฉพาะตัวอักษรภาษาอังกฤษ';
+      if (!/^0\d{9}$/.test((f.phone || '').replace(/\D/g, ''))) e.phone = 'กรุณาระบุเบอร์มือถือให้ครบ 10 หลัก';
+      if (req(f.lineId)) e.lineId = 'กรุณาระบุ Line ID';
+      if (req(f.email)) e.email = 'กรุณากรอกอีเมล';
+      else if (!emailRe.test(f.email)) e.email = 'รูปแบบอีเมลไม่ถูกต้อง';
+      if (req(f.birthDate)) e.birthDate = 'กรุณาเลือกวันเดือนปีเกิด';
+      else if (f.birthDate > TODAY_ISO) e.birthDate = 'ห้ามเลือกวันที่ในอนาคต';
+    }
+    if (s === 1) {
+      const map: Record<string, string> = {
+        eduLevel: 'กรุณาเลือกระดับการศึกษา', university: 'กรุณากรอกสถาบัน', faculty: 'กรุณากรอกคณะ',
+        major: 'กรุณากรอกสาขาวิชา', year: 'กรุณากรอกชั้นปี', gpa: 'กรุณากรอก GPAX', graduationYearBE: 'กรุณาเลือกปีที่คาดว่าจะสำเร็จ',
+      };
+      Object.keys(map).forEach((k) => {
+        if (req((f as never as Record<string, string>)[k])) e[k] = map[k];
+      });
+    }
+    if (s === 3) {
+      if (f.skills.length > 0 && (f.skillUsage || '').trim().length < 20) e.skillUsage = 'กรุณาอธิบายตัวอย่างการนำทักษะไปใช้อย่างน้อย 20 ตัวอักษร';
+    }
+    if (s === 4) {
+      if (req(f.availableFrom)) e.availableFrom = 'กรุณาเลือกวันที่เริ่มฝึกงาน';
+      if (req(f.availableTo)) e.availableTo = 'กรุณาเลือกวันสุดท้าย';
+      else if (f.availableFrom && f.availableTo <= f.availableFrom) e.availableTo = 'วันสุดท้ายต้องอยู่หลังวันเริ่มฝึกงาน';
+      if (!f.transport.length) e.transport = 'กรุณาเลือกวิธีเดินทางอย่างน้อย 1 ข้อ';
+    }
+    if (s === 5) {
+      if (!photo) e.photo = 'กรุณาแนบรูปถ่ายหน้าตรง';
+      if (!resume) e.resume = 'กรุณาแนบ Resume';
+      if (!transcript) e.transcript = 'กรุณาแนบ Transcript';
+    }
+    if (s === 7) {
+      if (!consent) e.consent = 'กรุณายินยอม PDPA';
+      if (TURNSTILE_SITE_KEY && !captchaToken) e.captcha = 'กรุณายืนยันว่าไม่ใช่บอท';
+    }
+    return e;
+  }
+
+  const errs = attempted ? stepErrors(step) : {};
+  const Err = ({ k }: { k: string }) => (errs[k] ? <p className="field-err">{errs[k]}</p> : null);
+
+  function next() {
+    setError('');
+    if (Object.keys(stepErrors(step)).length) {
+      setAttempted(true);
+      return;
+    }
+    setAttempted(false);
+    setStep((s) => Math.min(7, s + 1));
+    window.scrollTo({ top: 0 });
+  }
+  function back() {
+    setError('');
+    setAttempted(false);
+    if (step > 0) setStep((s) => s - 1);
+    else nav('/');
+    window.scrollTo({ top: 0 });
   }
 
   async function handleSubmit() {
-    const v = validateForSubmit();
-    if (!v.ok) {
-      setStep(v.step!);
-      setError(v.msg!);
-      return;
+    for (let s = 0; s <= 7; s++) {
+      if (Object.keys(stepErrors(s)).length) {
+        setStep(s);
+        setAttempted(true);
+        return;
+      }
     }
     setSubmitting(true);
     setError('');
@@ -141,8 +229,8 @@ export default function Apply() {
       const payload: ApplyPayload = {
         programId,
         positionApplied: programName,
-        personal: { firstName: data.firstName, lastName: data.lastName, email: data.email, phone: data.phone, lineUserId: '' },
-        education: { university: data.university, faculty: data.faculty, major: data.major, gpa: data.gpa, yearLevel: data.year, expectedGradYear: '' },
+        personal: { firstName: data.firstName, lastName: data.lastName, email: data.email, phone: data.phone, lineUserId: data.lineId },
+        education: { university: data.university, faculty: data.faculty, major: data.major, gpa: data.gpa, yearLevel: data.year, expectedGradYear: data.graduationYearBE },
         consent: { accepted: consent, version: CONSENT_VERSION },
         files: {
           photo: photo ? await fileToBase64(photo) : undefined,
@@ -169,17 +257,11 @@ export default function Apply() {
     }
   }
 
-  function next() {
-    setError('');
-    setStep((s) => Math.min(7, s + 1));
-    window.scrollTo({ top: 0 });
-  }
-  function back() {
-    setError('');
-    if (step > 0) setStep((s) => s - 1);
-    else nav('/');
-    window.scrollTo({ top: 0 });
-  }
+  // ระยะเวลาฝึกงานโดยประมาณ
+  const durationWeeks =
+    data.availableFrom && data.availableTo && data.availableTo > data.availableFrom
+      ? Math.round((new Date(data.availableTo).getTime() - new Date(data.availableFrom).getTime()) / (7 * 864e5))
+      : 0;
 
   if (result) {
     return (
@@ -201,7 +283,6 @@ export default function Apply() {
 
   return (
     <div className="apply-wrap">
-      {/* progress header */}
       <div className="apply-header">
         <div className="apply-header-top">
           <button className="apply-back" onClick={back}>
@@ -224,68 +305,121 @@ export default function Apply() {
         </div>
       </div>
 
-      {/* body */}
       <div className="apply-body scroll">
+        {/* STEP 0 — personal */}
         {step === 0 && (
           <div>
             <h2 className="step-title">มาทำความรู้จักกันก่อน 👋</h2>
             <p className="step-sub">ใช้เวลาประมาณ 2 นาที · ข้อมูลจะถูกบันทึกอัตโนมัติ</p>
             <label className="lbl">โครงการที่สมัคร</label>
-            <div className="fld" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-              <span>{programName}</span>
-            </div>
-            <label className="lbl">คำนำหน้า</label>
-            <div className="prefix-row" style={{ marginBottom: 18 }}>
+            <div className="fld" style={{ marginBottom: 18 }}>{programName}</div>
+
+            <label className="lbl">คำนำหน้า <span className="req">*</span></label>
+            <div className="prefix-row" style={{ flexWrap: 'wrap', marginBottom: 6 }}>
               {PREFIXES.map((p) => (
                 <button key={p} className={`prefix-btn ${data.prefix === p ? 'on' : ''}`} onClick={() => upd('prefix', p)}>
                   {p}
                 </button>
               ))}
             </div>
-            <div className="row-2" style={{ marginBottom: 18 }}>
+            <Err k="prefix" />
+            {data.prefix === 'อื่น ๆ' && (
+              <div style={{ marginTop: 12 }}>
+                <label className="lbl">โปรดระบุคำนำหน้าชื่อ <span className="req">*</span></label>
+                <input className="fld" value={data.prefixOther} onChange={onInput('prefixOther')} placeholder="เช่น ว่าที่ ร.ต." />
+                <Err k="prefixOther" />
+              </div>
+            )}
+
+            <div className="row-2" style={{ marginTop: 18 }}>
               <div>
-                <label className="lbl">ชื่อจริง</label>
+                <label className="lbl">ชื่อจริง (ภาษาไทย) <span className="req">*</span></label>
                 <input className="fld" value={data.firstName} onChange={onInput('firstName')} placeholder="ธนวัฒน์" />
+                <Err k="firstName" />
               </div>
               <div>
-                <label className="lbl">นามสกุล</label>
+                <label className="lbl">นามสกุล (ภาษาไทย) <span className="req">*</span></label>
                 <input className="fld" value={data.lastName} onChange={onInput('lastName')} placeholder="ใจดี" />
+                <Err k="lastName" />
               </div>
             </div>
-            <label className="lbl">เบอร์มือถือ</label>
-            <input className="fld" value={data.phone} onChange={onInput('phone')} placeholder="08X XXX XXXX" inputMode="numeric" />
-            {data.phone && <p className={phoneOk(data.phone) ? 'hint-ok' : 'hint-bad'}>{phoneOk(data.phone) ? '✓ เบอร์ถูกต้อง' : 'กรุณากรอกเบอร์ 10 หลัก ขึ้นต้นด้วย 0'}</p>}
-            <label className="lbl" style={{ marginTop: 18 }}>
-              Email
-            </label>
-            <input className="fld" value={data.email} onChange={onInput('email')} placeholder="you@email.com" type="email" />
-            {data.email && <p className={emailOk(data.email) ? 'hint-ok' : 'hint-bad'}>{emailOk(data.email) ? '✓ อีเมลถูกต้อง' : 'รูปแบบอีเมลไม่ถูกต้อง'}</p>}
+            <div className="row-2" style={{ marginTop: 18 }}>
+              <div>
+                <label className="lbl">First Name (English) <span className="req">*</span></label>
+                <input className="fld" value={data.firstNameEn} onChange={onInput('firstNameEn')} placeholder="Thanawat" />
+                <Err k="firstNameEn" />
+              </div>
+              <div>
+                <label className="lbl">Last Name (English) <span className="req">*</span></label>
+                <input className="fld" value={data.lastNameEn} onChange={onInput('lastNameEn')} placeholder="Jaidee" />
+                <Err k="lastNameEn" />
+              </div>
+            </div>
+
+            <label className="lbl" style={{ marginTop: 18 }}>เบอร์มือถือ <span className="req">*</span></label>
+            <input className="fld" value={fmtPhone(data.phone)} onChange={(e) => upd('phone', e.target.value.replace(/\D/g, '').slice(0, 10))} inputMode="numeric" placeholder="xxx-xxx-xxxx" />
+            <Err k="phone" />
+
+            <label className="lbl" style={{ marginTop: 18 }}>Line ID <span className="req">*</span></label>
+            <input className="fld" value={data.lineId} onChange={onInput('lineId')} placeholder="กรุณาระบุ Line ID" />
+            <Err k="lineId" />
+
+            <label className="lbl" style={{ marginTop: 18 }}>Email <span className="req">*</span></label>
+            <input className="fld" value={data.email} onChange={onInput('email')} inputMode="email" placeholder="you@email.com" />
+            <Err k="email" />
+
+            <label className="lbl" style={{ marginTop: 18 }}>วันเดือนปีเกิด <span className="req">*</span></label>
+            <input type="date" className="fld" value={data.birthDate} onChange={onInput('birthDate')} max={TODAY_ISO} />
+            <Err k="birthDate" />
           </div>
         )}
 
+        {/* STEP 1 — education */}
         {step === 1 && (
           <div>
             <h2 className="step-title">ข้อมูลการศึกษา 🎓</h2>
             <p className="step-sub">บอกเราว่าคุณเรียนที่ไหน สาขาอะไร</p>
-            <label className="lbl">มหาวิทยาลัย / สถาบัน</label>
-            <input className="fld" style={{ marginBottom: 18 }} value={data.university} onChange={onInput('university')} placeholder="เช่น จุฬาลงกรณ์มหาวิทยาลัย" />
-            <label className="lbl">คณะ</label>
-            <input className="fld" style={{ marginBottom: 18 }} value={data.faculty} onChange={onInput('faculty')} placeholder="เช่น พาณิชยศาสตร์และการบัญชี" />
-            <label className="lbl">สาขาวิชา</label>
-            <input className="fld" style={{ marginBottom: 18 }} value={data.major} onChange={onInput('major')} placeholder="เช่น การจัดการโลจิสติกส์" />
-            <div className="row-2">
+            <label className="lbl">ระดับการศึกษา <span className="req">*</span></label>
+            <select className="fld" value={data.eduLevel} onChange={onInput('eduLevel')}>
+              <option value="">เลือกระดับการศึกษา</option>
+              {EDU_LEVELS.map((l) => (
+                <option key={l} value={l}>{l}</option>
+              ))}
+            </select>
+            <Err k="eduLevel" />
+            <label className="lbl" style={{ marginTop: 16 }}>มหาวิทยาลัย / สถาบัน <span className="req">*</span></label>
+            <input className="fld" value={data.university} onChange={onInput('university')} placeholder="เช่น จุฬาลงกรณ์มหาวิทยาลัย" />
+            <Err k="university" />
+            <label className="lbl" style={{ marginTop: 16 }}>คณะ <span className="req">*</span></label>
+            <input className="fld" value={data.faculty} onChange={onInput('faculty')} placeholder="เช่น พาณิชยศาสตร์และการบัญชี" />
+            <Err k="faculty" />
+            <label className="lbl" style={{ marginTop: 16 }}>สาขาวิชา <span className="req">*</span></label>
+            <input className="fld" value={data.major} onChange={onInput('major')} placeholder="เช่น การจัดการโลจิสติกส์" />
+            <Err k="major" />
+            <div className="row-2" style={{ marginTop: 16 }}>
               <div>
-                <label className="lbl">ชั้นปี</label>
-                <input className="fld" value={data.year} onChange={onInput('year')} placeholder="เช่น 3" inputMode="numeric" />
+                <label className="lbl">ชั้นปี <span className="req">*</span></label>
+                <input className="fld" value={data.year} onChange={onInput('year')} inputMode="numeric" placeholder="เช่น 3" />
+                <Err k="year" />
               </div>
               <div>
-                <label className="lbl">เกรดเฉลี่ย (GPAX)</label>
-                <input className="fld" value={data.gpa} onChange={onInput('gpa')} placeholder="เช่น 3.25" inputMode="decimal" />
+                <label className="lbl">เกรดเฉลี่ย (GPAX) <span className="req">*</span></label>
+                <input className="fld" value={data.gpa} onChange={onInput('gpa')} inputMode="decimal" placeholder="เช่น 3.25" />
+                <Err k="gpa" />
               </div>
             </div>
+            <label className="lbl" style={{ marginTop: 16 }}>ปีที่คาดว่าจะสำเร็จการศึกษา <span className="req">*</span></label>
+            <select className="fld" value={data.graduationYearBE} onChange={onInput('graduationYearBE')}>
+              <option value="">เลือกปีที่คาดว่าจะสำเร็จ (พ.ศ.)</option>
+              {GRAD_YEARS.map((y) => (
+                <option key={y} value={y}>พ.ศ. {y}</option>
+              ))}
+            </select>
+            <Err k="graduationYearBE" />
           </div>
         )}
 
+        {/* STEP 2 — coordinator */}
         {step === 2 && (
           <div>
             <h2 className="step-title">อาจารย์ผู้ประสานงาน 📞</h2>
@@ -293,12 +427,13 @@ export default function Apply() {
             <label className="lbl">ชื่อ–นามสกุล อาจารย์</label>
             <input className="fld" style={{ marginBottom: 18 }} value={data.coordName} onChange={onInput('coordName')} placeholder="เช่น อ.สมชาย รักเรียน" />
             <label className="lbl">เบอร์ติดต่อ</label>
-            <input className="fld" style={{ marginBottom: 18 }} value={data.coordPhone} onChange={onInput('coordPhone')} placeholder="0X XXX XXXX" inputMode="numeric" />
+            <input className="fld" style={{ marginBottom: 18 }} value={data.coordPhone} onChange={onInput('coordPhone')} inputMode="numeric" placeholder="0X XXX XXXX" />
             <label className="lbl">อีเมลอาจารย์</label>
-            <input className="fld" value={data.coordEmail} onChange={onInput('coordEmail')} placeholder="advisor@university.ac.th" type="email" />
+            <input className="fld" value={data.coordEmail} onChange={onInput('coordEmail')} inputMode="email" placeholder="advisor@university.ac.th" />
           </div>
         )}
 
+        {/* STEP 3 — skills */}
         {step === 3 && (
           <div>
             <h2 className="step-title">ทักษะ &amp; กิจกรรม ✨</h2>
@@ -311,36 +446,50 @@ export default function Apply() {
                 </button>
               ))}
             </div>
+            {data.skills.length > 0 && (
+              <div style={{ marginBottom: 20 }}>
+                <label className="lbl">กรุณาอธิบายว่าท่านเคยใช้ทักษะที่เลือกทำอะไร <span className="req">*</span></label>
+                <textarea className="fld" rows={4} value={data.skillUsage} onChange={onInput('skillUsage')} placeholder="ตัวอย่าง: ใช้ Microsoft Excel จัดทำรายงานรายรับ–รายจ่ายของชมรม และใช้ PivotTable สรุปข้อมูลค่าใช้จ่ายแต่ละกิจกรรม" />
+                <p className="field-hint">โปรดระบุว่าท่านใช้ทักษะดังกล่าวในกิจกรรม การเรียน โครงการ งานพิเศษ หรือประสบการณ์ใด พร้อมยกตัวอย่างโดยสังเขป</p>
+                <Err k="skillUsage" />
+              </div>
+            )}
             <label className="lbl">ประสบการณ์ / กิจกรรมเด่น</label>
             <textarea className="fld" rows={4} value={data.activities} onChange={onInput('activities')} placeholder="เช่น เคยเป็นประธานชมรม, ฝึกงานร้านค้า, โครงงาน..." />
           </div>
         )}
 
+        {/* STEP 4 — availability */}
         {step === 4 && (
           <div>
             <h2 className="step-title">ความพร้อมฝึกงาน 📅</h2>
             <p className="step-sub">ช่วงเวลาและสาขาที่สะดวก</p>
-            <label className="lbl">พร้อมเริ่มฝึกวันที่</label>
-            <input className="fld" style={{ marginBottom: 18 }} value={data.availableFrom} onChange={onInput('availableFrom')} placeholder="เช่น 1 ต.ค. 2569" />
-            <label className="lbl">สาขา Makro ที่สะดวก</label>
-            <input className="fld" style={{ marginBottom: 18 }} value={data.preferBranch} onChange={onInput('preferBranch')} placeholder="เช่น แม็คโคร สาขาลาดพร้าว" />
-            <div className="toggle-row">
-              <div>
-                <div style={{ font: "600 14px 'Anuphan'", color: '#fff' }}>มีพาหนะส่วนตัว</div>
-                <div style={{ fontSize: 12, color: '#A9B6D4' }}>สะดวกเดินทางไปสาขา</div>
-              </div>
-              <button className={`toggle ${data.vehicle ? 'on' : ''}`} onClick={() => upd('vehicle', !data.vehicle)}>
-                <span className="knob" />
-              </button>
+            <label className="lbl">วันที่สามารถเริ่มฝึกงานได้ <span className="req">*</span></label>
+            <input type="date" className="fld" value={data.availableFrom} onChange={onInput('availableFrom')} min={TODAY_ISO} />
+            <Err k="availableFrom" />
+            <label className="lbl" style={{ marginTop: 16 }}>วันที่สามารถฝึกงานวันสุดท้าย <span className="req">*</span></label>
+            <input type="date" className="fld" value={data.availableTo} onChange={onInput('availableTo')} min={data.availableFrom || TODAY_ISO} />
+            <Err k="availableTo" />
+            {durationWeeks > 0 && <p className="dur-note">ระยะเวลาฝึกงานโดยประมาณ {durationWeeks} สัปดาห์</p>}
+            <label className="lbl" style={{ marginTop: 16 }}>สาขา Makro ที่สะดวก</label>
+            <input className="fld" value={data.preferBranch} onChange={onInput('preferBranch')} placeholder="เช่น แม็คโคร สาขาลาดพร้าว" />
+            <label className="lbl" style={{ marginTop: 16 }}>ท่านสามารถเดินทางไปปฏิบัติงานด้วยวิธีใด (เลือกได้หลายข้อ) <span className="req">*</span></label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 6 }}>
+              {TRANSPORT.map((t) => (
+                <button key={t.v} className={`chip chip-block ${data.transport.includes(t.v) ? 'on' : ''}`} onClick={() => toggleArr('transport', t.v)}>
+                  {t.label}
+                </button>
+              ))}
             </div>
+            <Err k="transport" />
           </div>
         )}
 
+        {/* STEP 5 — documents */}
         {step === 5 && (
           <div>
             <h2 className="step-title">แนบเอกสารกันหน่อย 📎</h2>
             <p className="step-sub">ไฟล์ละไม่เกิน 5MB · รองรับ PDF / รูปภาพ</p>
-
             <label className="upzone gold">
               <input type="file" accept=".jpg,.jpeg,.png" hidden onChange={pickFile(setPhoto)} />
               <div className="ico" style={{ background: 'rgba(255,196,46,.15)' }}>
@@ -354,7 +503,7 @@ export default function Apply() {
               <div className="s">แตะเพื่อเลือกรูป · JPG/PNG</div>
               {photo && <div className="picked">📎 {photo.name}</div>}
             </label>
-
+            <Err k="photo" />
             <label className="upzone red">
               <input type="file" accept=".pdf,.doc,.docx" hidden onChange={pickFile(setResume)} />
               <div className="ico" style={{ background: 'rgba(226,35,26,.15)' }}>
@@ -366,7 +515,7 @@ export default function Apply() {
               <div className="s">แตะเพื่อเลือกไฟล์ · PDF, DOC</div>
               {resume && <div className="picked">📎 {resume.name}</div>}
             </label>
-
+            <Err k="resume" />
             <label className="upzone">
               <input type="file" accept=".pdf,.jpg,.jpeg,.png" hidden onChange={pickFile(setTranscript)} />
               <div className="ico" style={{ background: 'rgba(63,197,240,.12)' }}>
@@ -378,13 +527,14 @@ export default function Apply() {
               <div className="s">แตะเพื่อเลือกไฟล์ · PDF, รูป</div>
               {transcript && <div className="picked">📎 {transcript.name}</div>}
             </label>
-
+            <Err k="transcript" />
             <div className="note-tip">
               <span>💡</span> Portfolio และหนังสือขอฝึกงาน แนบทีหลังได้ ไม่บังคับตอนนี้
             </div>
           </div>
         )}
 
+        {/* STEP 6 — sources */}
         {step === 6 && (
           <div>
             <h2 className="step-title">รู้จักโครงการจากไหน? 📣</h2>
@@ -399,6 +549,7 @@ export default function Apply() {
           </div>
         )}
 
+        {/* STEP 7 — PDPA */}
         {step === 7 && (
           <div>
             <h2 className="step-title">ขั้นตอนสุดท้าย 🔒</h2>
@@ -408,7 +559,7 @@ export default function Apply() {
               <div className="summary-row">
                 <span className="muted">ชื่อ</span>
                 <span style={{ color: '#fff' }}>
-                  {data.firstName} {data.lastName}
+                  {data.prefix === 'อื่น ๆ' ? data.prefixOther : data.prefix} {data.firstName} {data.lastName}
                 </span>
               </div>
               <div className="summary-row">
@@ -417,7 +568,7 @@ export default function Apply() {
               </div>
               <div className="summary-row">
                 <span className="muted">ติดต่อ</span>
-                <span style={{ color: '#fff' }}>{data.phone || data.email || '—'}</span>
+                <span style={{ color: '#fff' }}>{fmtPhone(data.phone) || data.email || '—'}</span>
               </div>
             </div>
             <button className={`consent-box ${consent ? 'on' : ''}`} onClick={() => setConsent((c) => !c)}>
@@ -428,25 +579,20 @@ export default function Apply() {
               </span>
               <span style={{ fontSize: 13, lineHeight: 1.55, color: '#EAF0FF' }}>
                 ข้าพเจ้ายินยอมให้บริษัทเก็บและใช้ข้อมูลส่วนบุคคลเพื่อการพิจารณารับสมัครฝึกงาน ตาม{' '}
-                <a
-                  href={`${import.meta.env.BASE_URL}#/privacy`}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ textDecoration: 'underline' }}
-                  onClick={(e) => e.stopPropagation()}
-                >
+                <a href={`${import.meta.env.BASE_URL}#/privacy`} target="_blank" rel="noreferrer" style={{ textDecoration: 'underline' }} onClick={(e) => e.stopPropagation()}>
                   ประกาศความเป็นส่วนตัว (PDPA)
                 </a>
               </span>
             </button>
+            <Err k="consent" />
             <Turnstile onToken={setCaptchaToken} />
+            <Err k="captcha" />
           </div>
         )}
 
         {error && <p className="error-text" style={{ marginTop: 16 }}>{error}</p>}
       </div>
 
-      {/* footer nav */}
       <div className="apply-footer">
         <button className="icon-btn" onClick={back}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2">
@@ -458,12 +604,7 @@ export default function Apply() {
             ถัดไป →
           </button>
         ) : (
-          <button
-            className="btn btn-red"
-            style={{ flex: 1 }}
-            onClick={handleSubmit}
-            disabled={submitting || !consent || (!!TURNSTILE_SITE_KEY && !captchaToken)}
-          >
+          <button className="btn btn-red" style={{ flex: 1 }} onClick={handleSubmit} disabled={submitting}>
             {submitting ? 'กำลังส่ง…' : 'ส่งใบสมัคร ✓'}
           </button>
         )}
