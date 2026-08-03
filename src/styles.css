@@ -1145,6 +1145,25 @@ textarea.fld {
   font: 700 13px 'Anuphan';
   min-width: 26px;
 }
+.dim-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.dim-tab {
+  cursor: pointer;
+  border: 1px solid var(--hair-strong);
+  background: var(--panel);
+  color: var(--ink2);
+  font: 600 12px 'Anuphan';
+  padding: 6px 12px;
+  border-radius: 999px;
+}
+.dim-tab.on {
+  background: var(--red-grad);
+  border-color: var(--red);
+  color: #fff;
+}
 .byfield-row {
   margin-bottom: 16px;
 }
