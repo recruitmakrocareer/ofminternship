@@ -88,8 +88,13 @@ export default function Dashboard() {
       const k = (getter(c) || '').trim() || 'ไม่ระบุ';
       map[k] = (map[k] || 0) + 1;
     });
-    const rows = Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 8);
-    return { rows, max: rows.length ? rows[0][1] : 1 };
+    const sorted = Object.entries(map).sort((a, b) => b[1] - a[1]);
+    const TOP = 8;
+    const rows = sorted.slice(0, TOP);
+    const rest = sorted.slice(TOP);
+    if (rest.length) rows.push(['อื่น ๆ', rest.reduce((s, [, n]) => s + n, 0)]);
+    const total = sorted.reduce((s, [, n]) => s + n, 0);
+    return { rows, max: rows.length ? Math.max(...rows.map((r) => r[1])) : 1, total, groups: sorted.length };
   }, [candidates, dim]);
 
   const recent = useMemo(() => [...candidates].reverse().slice(0, 5), [candidates]);
@@ -219,7 +224,9 @@ export default function Dashboard() {
 
               <div className="panel">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
-                  <h3 style={{ margin: 0 }}>แยกตาม</h3>
+                  <h3 style={{ margin: 0 }}>
+                    แยกตาม <span style={{ fontSize: 13, color: '#7E8DB0', fontWeight: 400 }}>· รวม {breakdown.total} · {breakdown.groups} กลุ่ม</span>
+                  </h3>
                   <div className="dim-tabs">
                     {DIMENSIONS.map((d) => (
                       <button key={d.key} className={`dim-tab ${dim === d.key ? 'on' : ''}`} onClick={() => setDim(d.key)}>
@@ -236,7 +243,7 @@ export default function Dashboard() {
                       <span style={{ color: '#fff', fontWeight: 700 }}>{n}</span>
                     </div>
                     <div className="byfield-track">
-                      <div style={{ width: `${Math.round((n / breakdown.max) * 100)}%`, height: '100%', background: FIELD_COLORS[i % FIELD_COLORS.length] }} />
+                      <div style={{ width: `${Math.round((n / breakdown.max) * 100)}%`, height: '100%', background: name === 'อื่น ๆ' ? '#5A6890' : FIELD_COLORS[i % FIELD_COLORS.length] }} />
                     </div>
                   </div>
                 ))}
