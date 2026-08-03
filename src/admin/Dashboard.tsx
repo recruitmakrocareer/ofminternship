@@ -11,7 +11,15 @@ const AFTER_PRESCREEN = ['prescreened', 'shortlisted', 'interview', 'offer', 'ac
 const AFTER_SHORTLIST = ['shortlisted', 'interview', 'offer', 'accepted'];
 const AFTER_INTERVIEW = ['interview', 'offer', 'accepted'];
 
-const FIELD_COLORS = ['#E2231A', '#FFC42E', '#3FC5F0', '#4FD08A', '#FF7A70'];
+const FIELD_COLORS = ['#E2231A', '#FFC42E', '#3FC5F0', '#4FD08A', '#FF7A70', '#8A97B8', '#E0A312', '#2A9BC7'];
+
+// มิติที่หมุนดูได้ในแผง breakdown
+const DIMENSIONS: { key: string; label: string; get: (c: Candidate) => string }[] = [
+  { key: 'major', label: 'สาขาวิชา', get: (c) => String(c.major || '') },
+  { key: 'university', label: 'มหาวิทยาลัย', get: (c) => String(c.university || '') },
+  { key: 'region', label: 'ภูมิภาค', get: (c) => String(c.applicationForm?.region || '') },
+  { key: 'store', label: 'สาขาที่สะดวก', get: (c) => String(c.applicationForm?.preferBranch || '') },
+];
 
 function initial(name: string) {
   return (name || '?').trim().charAt(0) || '?';
@@ -26,6 +34,7 @@ export default function Dashboard() {
   const [error, setError] = useState('');
   const [view, setView] = useState<'dash' | 'list'>('dash');
   const [q, setQ] = useState('');
+  const [dim, setDim] = useState('major');
 
   function load(tk: string) {
     if (!tk) return;
@@ -70,6 +79,18 @@ export default function Dashboard() {
       .slice(0, 5);
     return { total, prescreened, shortlist, interview, accepted, fields };
   }, [candidates]);
+
+  // breakdown ที่หมุนดูได้ตามมิติที่เลือก
+  const breakdown = useMemo(() => {
+    const getter = (DIMENSIONS.find((d) => d.key === dim) || DIMENSIONS[0]).get;
+    const map: Record<string, number> = {};
+    candidates.forEach((c) => {
+      const k = (getter(c) || '').trim() || 'ไม่ระบุ';
+      map[k] = (map[k] || 0) + 1;
+    });
+    const rows = Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    return { rows, max: rows.length ? rows[0][1] : 1 };
+  }, [candidates, dim]);
 
   const recent = useMemo(() => [...candidates].reverse().slice(0, 5), [candidates]);
   const filtered = useMemo(() => {
@@ -197,16 +218,25 @@ export default function Dashboard() {
               </div>
 
               <div className="panel">
-                <h3>แยกตามสายที่สมัคร</h3>
-                {m.fields.length === 0 && <p className="muted">ยังไม่มีข้อมูล</p>}
-                {m.fields.map(([name, n], i) => (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+                  <h3 style={{ margin: 0 }}>แยกตาม</h3>
+                  <div className="dim-tabs">
+                    {DIMENSIONS.map((d) => (
+                      <button key={d.key} className={`dim-tab ${dim === d.key ? 'on' : ''}`} onClick={() => setDim(d.key)}>
+                        {d.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {breakdown.rows.length === 0 && <p className="muted">ยังไม่มีข้อมูล</p>}
+                {breakdown.rows.map(([name, n], i) => (
                   <div key={name} className="byfield-row">
                     <div className="byfield-top">
                       <span style={{ color: '#C4CEE6' }}>{name}</span>
                       <span style={{ color: '#fff', fontWeight: 700 }}>{n}</span>
                     </div>
                     <div className="byfield-track">
-                      <div style={{ width: `${pct(n)}%`, height: '100%', background: FIELD_COLORS[i % FIELD_COLORS.length] }} />
+                      <div style={{ width: `${Math.round((n / breakdown.max) * 100)}%`, height: '100%', background: FIELD_COLORS[i % FIELD_COLORS.length] }} />
                     </div>
                   </div>
                 ))}

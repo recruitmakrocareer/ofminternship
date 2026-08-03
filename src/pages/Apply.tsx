@@ -16,6 +16,7 @@ const TRANSPORT = [
   { v: 'motorcycle', label: 'รถจักรยานยนต์' },
   { v: 'public_transport', label: 'รถสาธารณะ' },
 ];
+const REGIONS = ['กรุงเทพฯ และปริมณฑล', 'ภาคกลาง', 'ภาคตะวันออก', 'ภาคตะวันตก', 'ภาคเหนือ', 'ภาคตะวันออกเฉียงเหนือ', 'ภาคใต้', 'ทุกภูมิภาค'];
 
 const NOW = new Date();
 const TODAY_ISO = NOW.toISOString().slice(0, 10);
@@ -59,6 +60,7 @@ interface FormData {
   activities: string;
   availableFrom: string;
   availableTo: string;
+  region: string;
   preferBranch: string;
   transport: string[];
   sources: string[];
@@ -70,7 +72,7 @@ const EMPTY: FormData = {
   eduLevel: '', university: '', faculty: '', major: '', year: '', gpa: '', graduationYearBE: '',
   coordName: '', coordPhone: '', coordEmail: '',
   skills: [], skillUsage: '', activities: '',
-  availableFrom: '', availableTo: '', preferBranch: '', transport: [], sources: [],
+  availableFrom: '', availableTo: '', region: '', preferBranch: '', transport: [], sources: [],
 };
 
 const ERR_MSG: Record<string, string> = {
@@ -180,6 +182,7 @@ export default function Apply() {
       if (req(f.availableFrom)) e.availableFrom = 'กรุณาเลือกวันที่เริ่มฝึกงาน';
       if (req(f.availableTo)) e.availableTo = 'กรุณาเลือกวันสุดท้าย';
       else if (f.availableFrom && f.availableTo <= f.availableFrom) e.availableTo = 'วันสุดท้ายต้องอยู่หลังวันเริ่มฝึกงาน';
+      if (req(f.region)) e.region = 'กรุณาเลือกภูมิภาคที่สะดวก';
       if (!f.transport.length) e.transport = 'กรุณาเลือกวิธีเดินทางอย่างน้อย 1 ข้อ';
     }
     if (s === 5) {
@@ -471,7 +474,15 @@ export default function Apply() {
             <input type="date" className="fld" value={data.availableTo} onChange={onInput('availableTo')} min={data.availableFrom || TODAY_ISO} />
             <Err k="availableTo" />
             {durationWeeks > 0 && <p className="dur-note">ระยะเวลาฝึกงานโดยประมาณ {durationWeeks} สัปดาห์</p>}
-            <label className="lbl" style={{ marginTop: 16 }}>สาขา Makro ที่สะดวก</label>
+            <label className="lbl" style={{ marginTop: 16 }}>ภูมิภาคที่สะดวกปฏิบัติงาน <span className="req">*</span></label>
+            <select className="fld" value={data.region} onChange={onInput('region')}>
+              <option value="">เลือกภูมิภาค</option>
+              {REGIONS.map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+            <Err k="region" />
+            <label className="lbl" style={{ marginTop: 16 }}>สาขา Makro ที่สะดวก (Store)</label>
             <input className="fld" value={data.preferBranch} onChange={onInput('preferBranch')} placeholder="เช่น แม็คโคร สาขาลาดพร้าว" />
             <label className="lbl" style={{ marginTop: 16 }}>ท่านสามารถเดินทางไปปฏิบัติงานด้วยวิธีใด (เลือกได้หลายข้อ) <span className="req">*</span></label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 6 }}>
