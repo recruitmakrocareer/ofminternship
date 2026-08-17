@@ -46,6 +46,47 @@ const profileHref = (id: string, status?: string) =>
 function initial(name: string) {
   return (name || '?').trim().charAt(0) || '?';
 }
+
+// ---- Export CSV ----
+type CsvCol = [string, (c: Candidate) => unknown];
+const CSV_COLS: CsvCol[] = [
+  ['รหัสผู้สมัคร', (c) => c.candidateId],
+  ['Tracking', (c) => c.application?.trackingCode || ''],
+  ['คำนำหน้า', (c) => c.applicationForm?.prefix || ''],
+  ['ชื่อ (ไทย)', (c) => c.firstName],
+  ['นามสกุล (ไทย)', (c) => c.lastName],
+  ['ชื่อ (Eng)', (c) => c.applicationForm?.firstNameEn || ''],
+  ['นามสกุล (Eng)', (c) => c.applicationForm?.lastNameEn || ''],
+  ['อีเมล', (c) => c.email],
+  ['เบอร์', (c) => c.phone],
+  ['Line ID', (c) => c.lineUserId || c.applicationForm?.lineId || ''],
+  ['มหาวิทยาลัย', (c) => c.university],
+  ['คณะ', (c) => c.faculty],
+  ['สาขาวิชา', (c) => c.major],
+  ['ชั้นปี', (c) => c.yearLevel],
+  ['GPAX', (c) => c.gpa],
+  ['ภูมิภาค', (c) => c.applicationForm?.region || ''],
+  ['สาขาที่สะดวก', (c) => c.applicationForm?.preferBranch || ''],
+  ['สถานะ', (c) => statusLabel(c.application?.status || 'submitted')],
+  ['AI score', (c) => (c.aiStatus === 'done' ? c.aiMatchScore : '') ?? ''],
+  ['ยื่นเมื่อ', (c) => c.createdAt],
+];
+function csvEscape(v: unknown): string {
+  const s = v == null ? '' : String(v);
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+function downloadCSV(rows: Candidate[], filename: string) {
+  const header = CSV_COLS.map((x) => x[0]).join(',');
+  const body = rows.map((c) => CSV_COLS.map(([, get]) => csvEscape(get(c))).join(',')).join('\n');
+  const csv = '﻿' + header + '\n' + body; // BOM ให้ Excel อ่านภาษาไทยถูก
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 function chipStyle(on: boolean) {
   return on
     ? { background: 'rgba(255,196,46,.14)', color: '#FFC42E', borderColor: 'rgba(255,196,46,.45)' }
@@ -63,6 +104,7 @@ export default function Dashboard() {
   const [q, setQ] = useState('');
   const [dim, setDim] = useState('major');
   const [statusFilter, setStatusFilter] = useState('');
+  const [dupOnly, setDupOnly] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
   const [prefs, setPrefs] = useState<Prefs>(() => {
     try {
@@ -157,14 +199,34 @@ export default function Dashboard() {
   }, [candidates, prefs.uniSort, prefs.uniAll]);
 
   const recent = useMemo(() => [...candidates].reverse().slice(0, 5), [candidates]);
+
+  // ตรวจใบสมัครซ้ำ — อีเมลหรือเบอร์เดียวกันปรากฏมากกว่า 1 ครั้ง
+  const dupInfo = useMemo(() => {
+    const email: Record<string, number> = {};
+    const phone: Record<string, number> = {};
+    candidates.forEach((c) => {
+      const e = String(c.email || '').toLowerCase().trim();
+      const p = String(c.phone || '').replace(/\D/g, '');
+      if (e) email[e] = (email[e] || 0) + 1;
+      if (p) phone[p] = (phone[p] || 0) + 1;
+    });
+    const isDup = (c: Candidate) => {
+      const e = String(c.email || '').toLowerCase().trim();
+      const p = String(c.phone || '').replace(/\D/g, '');
+      return (!!e && email[e] > 1) || (!!p && phone[p] > 1);
+    };
+    return { isDup, count: candidates.filter(isDup).length };
+  }, [candidates]);
+
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
     return candidates.filter((c) => {
       if (statusFilter && stOf(c) !== statusFilter) return false;
-      if (s && !`${c.firstName} ${c.lastName} ${c.university} ${c.faculty}`.toLowerCase().includes(s)) return false;
+      if (dupOnly && !dupInfo.isDup(c)) return false;
+      if (s && !`${c.firstName} ${c.lastName} ${c.university} ${c.faculty} ${c.email}`.toLowerCase().includes(s)) return false;
       return true;
     });
-  }, [candidates, q, statusFilter]);
+  }, [candidates, q, statusFilter, dupOnly, dupInfo]);
 
   const pct = (n: number) => (m.total ? Math.round((n / m.total) * 100) : 0);
   const fmtDate = (d: string) => (d ? new Date(d).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' }) : '—');
@@ -178,7 +240,12 @@ export default function Dashboard() {
         <span style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 12 }}>
           <span className="avatar-ini" style={{ flexBasis: 36, height: 36 }}>{initial(c.firstName)}</span>
           <span>
-            <span style={{ font: "600 14px 'Anuphan'", color: '#fff', display: 'block' }}>{c.firstName} {c.lastName}</span>
+            <span style={{ font: "600 14px 'Anuphan'", color: '#fff', display: 'block' }}>
+              {c.firstName} {c.lastName}
+              {dupInfo.isDup(c) && (
+                <span style={{ marginLeft: 8, font: "700 10px 'Anuphan'", color: '#FF7A70', background: 'rgba(226,35,26,.15)', padding: '2px 7px', borderRadius: 999 }}>ซ้ำ</span>
+              )}
+            </span>
             <span style={{ fontSize: 12, color: '#7E8DB0' }}>{c.university}</span>
           </span>
         </span>
@@ -453,6 +520,21 @@ export default function Dashboard() {
                   <option key={s} value={s}>{statusLabel(s)}</option>
                 ))}
               </select>
+              <button
+                className={`dim-tab ${dupOnly ? 'on' : ''}`}
+                style={{ padding: '11px 14px', flex: '0 0 auto', opacity: dupInfo.count ? 1 : 0.5 }}
+                disabled={!dupInfo.count}
+                onClick={() => setDupOnly((v) => !v)}
+                title="แสดงเฉพาะใบสมัครที่อีเมล/เบอร์ซ้ำกัน"
+              >
+                ⚠ ซ้ำ ({dupInfo.count})
+              </button>
+              <button className="dim-tab" style={{ padding: '11px 14px', flex: '0 0 auto' }} onClick={() => downloadCSV(candidates, `ofm-applicants-all-${new Date().toISOString().slice(0, 10)}.csv`)}>
+                ⬇ CSV ทั้งหมด
+              </button>
+              <button className="dim-tab" style={{ padding: '11px 14px', flex: '0 0 auto' }} onClick={() => downloadCSV(filtered, `ofm-applicants-filtered-${new Date().toISOString().slice(0, 10)}.csv`)}>
+                ⬇ CSV ตามตัวกรอง
+              </button>
             </div>
             {statusFilter && (
               <p className="admin-sub" style={{ margin: '-10px 0 14px' }}>
