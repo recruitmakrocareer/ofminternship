@@ -1213,6 +1213,7 @@ textarea.fld {
   display: flex;
   gap: 10px;
   margin-bottom: 18px;
+  flex-wrap: wrap;
 }
 .admin-search {
   flex: 1;
