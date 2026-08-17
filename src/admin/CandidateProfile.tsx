@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { adminGetCandidate, adminGetPhoto, adminUpdateStatus, type Application, type Candidate } from '../lib/api';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { adminGetCandidate, adminGetPhoto, adminListCandidates, adminUpdateStatus, type Application, type Candidate } from '../lib/api';
 import { badgeStyle, statusLabel, STATUS_ACTIONS } from '../lib/status';
 import AdminSidebar from './AdminSidebar';
 
@@ -10,6 +10,8 @@ const initial = (n: string) => (n || '?').trim().charAt(0) || '?';
 export default function CandidateProfile() {
   const { id = '' } = useParams();
   const nav = useNavigate();
+  const [sp] = useSearchParams();
+  const statusFilter = sp.get('status') || '';
   const token = localStorage.getItem(TOKEN_KEY) || '';
 
   const [c, setC] = useState<Candidate | null>(null);
@@ -18,6 +20,23 @@ export default function CandidateProfile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [siblingIds, setSiblingIds] = useState<string[]>([]);
+
+  // โหลดลำดับผู้สมัคร (ตามตัวกรองสถานะที่ส่งมาทาง ?status=) เพื่อทำปุ่มก่อนหน้า/ถัดไป
+  useEffect(() => {
+    if (!token) return;
+    adminListCandidates(token).then((r) => {
+      let list = r.ok && r.candidates ? r.candidates : [];
+      if (statusFilter) list = list.filter((x) => (x.application?.status || 'submitted') === statusFilter);
+      setSiblingIds(list.map((x) => x.candidateId));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter]);
+
+  const idx = siblingIds.indexOf(id);
+  const prevId = idx > 0 ? siblingIds[idx - 1] : '';
+  const nextId = idx >= 0 && idx < siblingIds.length - 1 ? siblingIds[idx + 1] : '';
+  const goSibling = (sid: string) => nav(`/admin/candidate/${sid}${statusFilter ? `?status=${encodeURIComponent(statusFilter)}` : ''}`);
 
   function reload() {
     setLoading(true);
@@ -88,12 +107,27 @@ export default function CandidateProfile() {
 
   return shell(
     <div>
-      <button className="admin-nav" style={{ width: 'auto', padding: 0, color: '#3FC5F0', marginBottom: 18 }} onClick={() => nav('/admin')}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M15 18l-6-6 6-6" />
-        </svg>
-        กลับไปรายชื่อ
-      </button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
+        <button className="admin-nav" style={{ width: 'auto', padding: 0, color: '#3FC5F0' }} onClick={() => nav('/admin')}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+          กลับไปรายชื่อ
+        </button>
+        <span style={{ flex: 1 }} />
+        {idx >= 0 && siblingIds.length > 1 && (
+          <span style={{ fontSize: 13, color: '#7E8DB0' }}>
+            {idx + 1} / {siblingIds.length}
+            {statusFilter ? ` · ${statusLabel(statusFilter)}` : ''}
+          </span>
+        )}
+        <button className="status-btn" disabled={!prevId} style={{ opacity: prevId ? 1 : 0.4, cursor: prevId ? 'pointer' : 'default' }} onClick={() => prevId && goSibling(prevId)}>
+          ← ก่อนหน้า
+        </button>
+        <button className="status-btn" disabled={!nextId} style={{ opacity: nextId ? 1 : 0.4, cursor: nextId ? 'pointer' : 'default' }} onClick={() => nextId && goSibling(nextId)}>
+          ถัดไป →
+        </button>
+      </div>
 
       <div className="profile-2col">
         {/* left */}

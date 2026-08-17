@@ -38,6 +38,10 @@ const WIDGET_LABELS: Record<keyof Prefs['widgets'], string> = {
   kpi: 'KPI สรุป', pipeline: 'Pipeline การคัดเลือก', field: 'แยกตามสาย', uni: 'สรุปมหาวิทยาลัย', recent: 'ผู้สมัครล่าสุด',
 };
 const SORT_OPTS: [Prefs['uniSort'], string][] = [['count', 'ใบสมัครมากสุด'], ['acc', 'รับเข้ามากสุด'], ['name', 'ชื่อ ก–ฮ']];
+const STATUS_FILTER_OPTS = ['submitted', 'prescreened', 'shortlisted', 'interview', 'accepted', 'rejected'];
+// ลิงก์โปรไฟล์ (เปิดแท็บใหม่) — คง base path + hash route + ตัวกรองสถานะไว้ให้ปุ่มถัดไป
+const profileHref = (id: string, status?: string) =>
+  `${import.meta.env.BASE_URL}#/admin/candidate/${id}${status ? `?status=${encodeURIComponent(status)}` : ''}`;
 
 function initial(name: string) {
   return (name || '?').trim().charAt(0) || '?';
@@ -58,6 +62,7 @@ export default function Dashboard() {
   const [view, setView] = useState<'dash' | 'list'>('dash');
   const [q, setQ] = useState('');
   const [dim, setDim] = useState('major');
+  const [statusFilter, setStatusFilter] = useState('');
   const [customOpen, setCustomOpen] = useState(false);
   const [prefs, setPrefs] = useState<Prefs>(() => {
     try {
@@ -154,9 +159,12 @@ export default function Dashboard() {
   const recent = useMemo(() => [...candidates].reverse().slice(0, 5), [candidates]);
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
-    if (!s) return candidates;
-    return candidates.filter((c) => `${c.firstName} ${c.lastName} ${c.university} ${c.faculty}`.toLowerCase().includes(s));
-  }, [candidates, q]);
+    return candidates.filter((c) => {
+      if (statusFilter && stOf(c) !== statusFilter) return false;
+      if (s && !`${c.firstName} ${c.lastName} ${c.university} ${c.faculty}`.toLowerCase().includes(s)) return false;
+      return true;
+    });
+  }, [candidates, q, statusFilter]);
 
   const pct = (n: number) => (m.total ? Math.round((n / m.total) * 100) : 0);
   const fmtDate = (d: string) => (d ? new Date(d).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' }) : '—');
@@ -166,7 +174,7 @@ export default function Dashboard() {
     const st = stOf(c);
     const bs = badgeStyle(st);
     return (
-      <div className="dt-row" onClick={() => nav(`/admin/candidate/${c.candidateId}`)}>
+      <a className="dt-row" href={profileHref(c.candidateId, statusFilter)} target="_blank" rel="noreferrer">
         <span style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 12 }}>
           <span className="avatar-ini" style={{ flexBasis: 36, height: 36 }}>{initial(c.firstName)}</span>
           <span>
@@ -180,7 +188,7 @@ export default function Dashboard() {
         <span style={{ flex: '0 0 130px' }}>
           <span className="badge" style={bs}>{statusLabel(st)}</span>
         </span>
-      </div>
+      </a>
     );
   }
 
@@ -413,7 +421,7 @@ export default function Dashboard() {
                   const st = stOf(c);
                   const bs = badgeStyle(st);
                   return (
-                    <div key={c.candidateId} className="recent-row" style={{ padding: `${rowPad} 12px` }} onClick={() => nav(`/admin/candidate/${c.candidateId}`)}>
+                    <a key={c.candidateId} className="recent-row" style={{ padding: `${rowPad} 12px` }} href={profileHref(c.candidateId)} target="_blank" rel="noreferrer">
                       <div className="avatar-ini">{initial(c.firstName)}</div>
                       <div style={{ flex: 1 }}>
                         <div style={{ font: "600 14px 'Anuphan'", color: '#fff' }}>{c.firstName} {c.lastName}</div>
@@ -421,7 +429,7 @@ export default function Dashboard() {
                       </div>
                       <div style={{ flex: '0 0 90px', fontSize: 13, color: '#A9B6D4' }}>GPAX {c.gpa || '—'}</div>
                       <span className="badge" style={bs}>{statusLabel(st)}</span>
-                    </div>
+                    </a>
                   );
                 })}
               </div>
@@ -439,7 +447,18 @@ export default function Dashboard() {
                 </svg>
                 <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="ค้นหาชื่อ / มหาวิทยาลัย..." />
               </div>
+              <select className="fld" style={{ width: 'auto', minWidth: 150, flex: '0 0 auto' }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                <option value="">ทุกสถานะ</option>
+                {STATUS_FILTER_OPTS.map((s) => (
+                  <option key={s} value={s}>{statusLabel(s)}</option>
+                ))}
+              </select>
             </div>
+            {statusFilter && (
+              <p className="admin-sub" style={{ margin: '-10px 0 14px' }}>
+                กรอง: {statusLabel(statusFilter)} · {filtered.length} คน · <span style={{ color: '#3FC5F0', cursor: 'pointer' }} onClick={() => setStatusFilter('')}>ล้างตัวกรอง</span>
+              </p>
+            )}
             <div className="dt">
               <div className="dt-head">
                 <span style={{ flex: 1 }}>ผู้สมัคร</span>
