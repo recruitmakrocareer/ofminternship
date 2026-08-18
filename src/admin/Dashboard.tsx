@@ -48,6 +48,8 @@ function initial(name: string) {
 }
 
 // ---- Export CSV ----
+const TRANSPORT_TH: Record<string, string> = { car: 'รถยนต์', motorcycle: 'รถจักรยานยนต์', public_transport: 'รถสาธารณะ' };
+const joinArr = (v: unknown) => (Array.isArray(v) ? v.join('; ') : v || '');
 type CsvCol = [string, (c: Candidate) => unknown];
 const CSV_COLS: CsvCol[] = [
   ['รหัสผู้สมัคร', (c) => c.candidateId],
@@ -65,8 +67,19 @@ const CSV_COLS: CsvCol[] = [
   ['สาขาวิชา', (c) => c.major],
   ['ชั้นปี', (c) => c.yearLevel],
   ['GPAX', (c) => c.gpa],
+  ['วันเกิด', (c) => c.applicationForm?.birthDate || ''],
   ['ภูมิภาค', (c) => c.applicationForm?.region || ''],
   ['สาขาที่สะดวก', (c) => c.applicationForm?.preferBranch || ''],
+  ['การเดินทาง', (c) => ((c.applicationForm?.transport as string[]) || []).map((t) => TRANSPORT_TH[t] || t).join('; ')],
+  ['เริ่มฝึกได้', (c) => c.applicationForm?.availableFrom || ''],
+  ['ฝึกวันสุดท้าย', (c) => c.applicationForm?.availableTo || ''],
+  ['ทักษะ', (c) => joinArr(c.applicationForm?.skills)],
+  ['การใช้ทักษะ', (c) => c.applicationForm?.skillUsage || ''],
+  ['กิจกรรม/ประสบการณ์', (c) => c.applicationForm?.activities || ''],
+  ['ช่องทางที่ทราบข่าว', (c) => joinArr(c.applicationForm?.sources)],
+  ['อาจารย์ผู้ประสานงาน', (c) => c.applicationForm?.coordName || ''],
+  ['เบอร์อาจารย์', (c) => c.applicationForm?.coordPhone || ''],
+  ['อีเมลอาจารย์', (c) => c.applicationForm?.coordEmail || ''],
   ['สถานะ', (c) => statusLabel(c.application?.status || 'submitted')],
   ['AI score', (c) => (c.aiStatus === 'done' ? c.aiMatchScore : '') ?? ''],
   ['ยื่นเมื่อ', (c) => c.createdAt],
