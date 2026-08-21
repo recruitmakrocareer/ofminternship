@@ -35,9 +35,36 @@ function getCandidatePhoto(candidateId) {
   }
 }
 
-/** listCandidates — รายการผู้สมัครทั้งหมด + สถานะใบสมัครล่าสุด (สำหรับ Dashboard) */
-function listCandidates() {
+/**
+ * listCandidates — รายการผู้สมัครทั้งหมด + สถานะใบสมัครล่าสุด (สำหรับ Dashboard)
+ *
+ * lite = true คืนเฉพาะ candidateId + status (หน้าโปรไฟล์ใช้แค่นี้ทำปุ่มก่อนหน้า/ถัดไป)
+ * ไม่ดึงคอลัมน์ applicationFormJson / statusHistoryJson ของทุกแถว ซึ่งทำให้ response
+ * โตขึ้นเรื่อย ๆ ตามจำนวนผู้สมัครจนหลุด limit ของ Apps Script — อาการคือ /exec redirect
+ * ไป script.googleusercontent.com/macros/echo แล้วได้ 404 กลับมา
+ */
+function listCandidates(lite) {
   const ss = SpreadsheetApp.openById(SHEET_ID);
+
+  if (lite) {
+    const candSheet = ss.getSheetByName(TAB.CAND);
+    const appSheet = ss.getSheetByName(TAB.APP);
+    const nCand = candSheet.getLastRow() - 1;
+    const nApp = appSheet.getLastRow() - 1;
+    const ids = nCand > 0 ? candSheet.getRange(2, CAND.candidateId, nCand, 1).getValues() : [];
+    // อ่านถึงคอลัมน์ status เท่านั้น (ไม่รวม statusHistoryJson ที่อยู่ถัดไป)
+    const appRows = nApp > 0 ? appSheet.getRange(2, 1, nApp, APP.status).getValues() : [];
+
+    const statusBy = {};
+    appRows.forEach(r => { if (r[APP.candidateId - 1]) statusBy[r[APP.candidateId - 1]] = r[APP.status - 1]; });
+
+    const slim = ids.filter(r => r[0]).map(r => ({
+      candidateId: r[0],
+      application: statusBy[r[0]] ? { status: statusBy[r[0]] } : null,
+    }));
+    return { ok: true, count: slim.length, candidates: slim };
+  }
+
   const cands = ss.getSheetByName(TAB.CAND).getDataRange().getValues().slice(1);
   const apps = ss.getSheetByName(TAB.APP).getDataRange().getValues().slice(1);
 
