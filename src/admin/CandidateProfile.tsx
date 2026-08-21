@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { adminGetCandidate, adminGetPhoto, adminListCandidates, adminUpdateStatus, type Application, type Candidate } from '../lib/api';
+import { adminGetCandidate, adminGetPhoto, adminListCandidates, adminUpdateStatus, apiErrorMessage, type Application, type Candidate } from '../lib/api';
 import { badgeStyle, statusLabel, STATUS_ACTIONS } from '../lib/status';
 import AdminSidebar from './AdminSidebar';
 
@@ -23,13 +23,16 @@ export default function CandidateProfile() {
   const [siblingIds, setSiblingIds] = useState<string[]>([]);
 
   // โหลดลำดับผู้สมัคร (ตามตัวกรองสถานะที่ส่งมาทาง ?status=) เพื่อทำปุ่มก่อนหน้า/ถัดไป
+  // ใช้ lite เพราะต้องการแค่ id + สถานะ — ไม่ต้องดึงข้อมูลผู้สมัครทุกคนมาทั้งก้อน
   useEffect(() => {
     if (!token) return;
-    adminListCandidates(token).then((r) => {
-      let list = r.ok && r.candidates ? r.candidates : [];
-      if (statusFilter) list = list.filter((x) => (x.application?.status || 'submitted') === statusFilter);
-      setSiblingIds(list.map((x) => x.candidateId));
-    });
+    adminListCandidates(token, { lite: true })
+      .then((r) => {
+        let list = r.ok && r.candidates ? r.candidates : [];
+        if (statusFilter) list = list.filter((x) => (x.application?.status || 'submitted') === statusFilter);
+        setSiblingIds(list.map((x) => x.candidateId));
+      })
+      .catch(() => setSiblingIds([])); // ปุ่มก่อนหน้า/ถัดไปหายไปเฉย ๆ ไม่ทำให้ทั้งหน้าพัง
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter]);
 
@@ -40,14 +43,15 @@ export default function CandidateProfile() {
 
   function reload() {
     setLoading(true);
+    setError('');
     adminGetCandidate(token, id)
       .then((r) => {
         if (r.ok && r.candidate) {
           setC(r.candidate);
           setApp((r.applications || [])[0] || null);
-        } else setError(r.error === 'unauthorized' ? 'Admin token ไม่ถูกต้อง' : r.error || 'error');
+        } else setError(apiErrorMessage(r.error));
       })
-      .catch(() => setError('เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ'))
+      .catch(() => setError(apiErrorMessage('network')))
       .finally(() => setLoading(false));
   }
 
@@ -59,9 +63,12 @@ export default function CandidateProfile() {
     }
     reload();
     setPhotoUri('');
-    adminGetPhoto(token, id).then((r) => {
-      if (r.ok && r.dataBase64) setPhotoUri(`data:${r.mimeType || 'image/jpeg'};base64,${r.dataBase64}`);
-    });
+    // รูปถ่ายเป็น optional — ถ้าดึงไม่ได้ให้แสดง "ไม่มีรูป" แทน ไม่ให้ทั้งหน้าพัง
+    adminGetPhoto(token, id)
+      .then((r) => {
+        if (r.ok && r.dataBase64) setPhotoUri(`data:${r.mimeType || 'image/jpeg'};base64,${r.dataBase64}`);
+      })
+      .catch(() => setPhotoUri(''));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
