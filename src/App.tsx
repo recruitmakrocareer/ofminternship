@@ -54,17 +54,19 @@ function PromoPane() {
     <div className="promo">
       <div className="promo-card">
         <div className="promo-media">
-          {slides.map((s, i) => (
-            <div key={i} className={`car-slide ${i === index ? 'on' : ''}`}>
-              {s.src ? <img src={s.src} alt="" /> : <div className="car-ph">{s.label}</div>}
+          {slides.map((src, i) => (
+            <div key={src} className={`car-slide ${i === index ? 'on' : ''}`}>
+              <img src={src} alt="" />
             </div>
           ))}
         </div>
-        <div className="car-dots" style={{ position: 'static', marginTop: 14 }}>
-          {slides.map((_, i) => (
-            <span key={i} className={`dot ${i === index ? 'on' : ''}`} />
-          ))}
-        </div>
+        {slides.length > 1 && (
+          <div className="car-dots" style={{ position: 'static', marginTop: 14 }}>
+            {slides.map((src, i) => (
+              <span key={src} className={`dot ${i === index ? 'on' : ''}`} />
+            ))}
+          </div>
+        )}
       </div>
       <div className="promo-logo">
         <img src={`${import.meta.env.BASE_URL}cpx-logo.jpg`} alt="CP AXTRA · makro · Lotus's" />

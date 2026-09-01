@@ -67,22 +67,24 @@ function MobileCarousel() {
   return (
     <div className="m-car">
       <div className="m-car-media">
-        {slides.map((s, i) => (
-          <div key={i} className={`car-slide ${i === index ? 'on' : ''}`}>
-            {s.src ? <img src={s.src} alt="" /> : <div className="car-ph">{s.label}</div>}
+        {slides.map((src, i) => (
+          <div key={src} className={`car-slide ${i === index ? 'on' : ''}`}>
+            <img src={src} alt="" />
           </div>
         ))}
-        <div className="car-dots">
-          {slides.map((_, i) => (
-            <button
-              key={i}
-              type="button"
-              aria-label={`สไลด์ ${i + 1}`}
-              className={`dot ${i === index ? 'on' : ''}`}
-              onClick={() => setIndex(i)}
-            />
-          ))}
-        </div>
+        {slides.length > 1 && (
+          <div className="car-dots">
+            {slides.map((src, i) => (
+              <button
+                key={src}
+                type="button"
+                aria-label={`สไลด์ ${i + 1}`}
+                className={`dot ${i === index ? 'on' : ''}`}
+                onClick={() => setIndex(i)}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

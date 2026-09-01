@@ -2,32 +2,21 @@ import { useEffect, useState } from 'react';
 import { fetchPrograms } from './api';
 
 // ---------------------------------------------------------------------------
-// รูป Slideshow — อ่านจาก Google Sheet (Programs คอลัมน์ L = slideImagesJson)
-// เพื่อให้ทีม TA เปลี่ยนรูปได้เองโดยไม่ต้อง deploy ใหม่
+// รูป Slideshow — มี 2 ทางให้เลือก (ทางไหนก็ได้)
 //
-// ค่าในชีตเป็น JSON array ของ string ได้ 2 แบบ
-//   - URL เต็ม        : "https://.../hero.jpg"
-//   - ชื่อไฟล์ใน public: "poster.png"  → ต่อ BASE_URL ให้อัตโนมัติ
-// ถ้าชีตยังไม่มีคอลัมน์นี้ (หรือดึงไม่สำเร็จ) จะ fallback เป็นค่า default
+// [ทางหลัก] ไฟล์ใน repo — เหมาะกับคนที่ไม่เปลี่ยนรูปบ่อย
+//   1. วางไฟล์รูปไว้ใน public/
+//   2. เพิ่มชื่อไฟล์ใน LOCAL_SLIDES ข้างล่าง (เรียงตามลำดับที่จะให้เล่น)
+//   3. push → GitHub Actions deploy ให้เอง
+//
+// [ทางเสริม] Google Sheet — เผื่ออยากเปลี่ยนรูปเองโดยไม่ต้อง deploy
+//   ใส่ JSON array ที่ Programs คอลัมน์ L (slideImagesJson) แล้วจะ override
+//   LOCAL_SLIDES ทันที · ปล่อยว่าง = ใช้ LOCAL_SLIDES
+//   ค่าในนั้นเป็น URL เต็ม ("https://.../hero.jpg") หรือชื่อไฟล์ใน public/ ก็ได้
 // ---------------------------------------------------------------------------
 
-export interface Slide {
-  src: string;
-  label: string;
-}
-
-// ข้อความ placeholder ของช่องที่ยังไม่มีรูป (เรียงตามลำดับสไลด์)
-const PLACEHOLDERS = [
-  'โปสเตอร์โครงการ',
-  'บรรยากาศการทำงานจริง',
-  'ทีม / สาขา Makro',
-  'กิจกรรมในโครงการ',
-];
-
-const DEFAULT_SLIDES: Slide[] = PLACEHOLDERS.map((label, i) => ({
-  src: i === 0 ? `${import.meta.env.BASE_URL}poster.png` : '',
-  label,
-}));
+/** รูปที่ฝังมากับเว็บ (ไฟล์ต้องอยู่ใน public/) — เพิ่ม/ลด/สลับลำดับได้ที่บรรทัดนี้ */
+const LOCAL_SLIDES = ['poster.png'];
 
 /** ต่อ path ให้ถูกต้อง — URL เต็มใช้ตามนั้น, ชื่อไฟล์เฉย ๆ ถือว่าอยู่ใน public/ */
 function resolve(v: string): string {
@@ -37,18 +26,18 @@ function resolve(v: string): string {
   return import.meta.env.BASE_URL + s.replace(/^\/+/, '');
 }
 
-let cache: Promise<Slide[]> | null = null;
+const DEFAULT_SLIDES: string[] = LOCAL_SLIDES.map(resolve).filter(Boolean);
+
+let cache: Promise<string[]> | null = null;
 
 /** โหลดรายการรูปจาก backend ครั้งเดียวต่อการเปิดหน้า (cache ที่ระดับ module) */
-export function loadSlides(): Promise<Slide[]> {
+export function loadSlides(): Promise<string[]> {
   if (!cache) {
     cache = fetchPrograms()
       .then((res) => {
         const p = (res.programs || []).find((x) => (x.slideImages || []).length > 0);
         const list = (p?.slideImages || []).map(resolve).filter(Boolean);
-        return list.length
-          ? list.map((src, i) => ({ src, label: PLACEHOLDERS[i] || '' }))
-          : DEFAULT_SLIDES;
+        return list.length ? list : DEFAULT_SLIDES;
       })
       .catch(() => DEFAULT_SLIDES);
   }
@@ -61,7 +50,7 @@ export function loadSlides(): Promise<Slide[]> {
  * โดยต้องเรนเดอร์ทีละตัวเท่านั้น (gate ด้วย useIsDesktop) เพื่อไม่ให้มี timer ซ้อน
  */
 export function useSlideshow(intervalMs = 2800) {
-  const [slides, setSlides] = useState<Slide[]>(DEFAULT_SLIDES);
+  const [slides, setSlides] = useState<string[]>(DEFAULT_SLIDES);
   const [index, setIndex] = useState(0);
 
   useEffect(() => {

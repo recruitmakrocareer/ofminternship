@@ -25,10 +25,12 @@ Project memory / decisions for Claude Code. Read before making changes.
 - Theme tokens + component classes live in `src/styles.css` (dark navy +
   red/gold/cyan). Fonts: Anuphan (headings/UI) + Noto Sans Thai (body).
 - Dashboard view prefs persist to localStorage `ofm_admin_view_prefs`.
-- Slideshow images come from `Programs` col L (`slideImagesJson`, a JSON array of
-  full URLs or `public/` filenames) via `src/lib/slides.ts`. One slide array,
-  one timer: `PromoPane` (desktop ≥1040px) and `MobileCarousel` (in Landing)
-  are mounted exclusively by `useIsDesktop()` — never both at once.
+- Slideshow images: primary source is `LOCAL_SLIDES` in `src/lib/slides.ts`
+  (filenames in `public/`); `Programs` col L (`slideImagesJson`, a JSON array of
+  full URLs or `public/` filenames) overrides it when non-empty, so art can be
+  swapped without a deploy. Never render a slot with no image — no placeholder
+  cards. One slide array, one timer: `PromoPane` (desktop ≥1040px) and
+  `MobileCarousel` (in Landing) are mounted exclusively by `useIsDesktop()`.
 - Slide art spec: 1080 × 1350 (4:5), JPG q80 or WebP, ≤300–500 KB, sRGB.
 - Backend `.gs` changes require the user to re-paste in the Apps Script editor
   and Deploy a new version (no clasp in use).
