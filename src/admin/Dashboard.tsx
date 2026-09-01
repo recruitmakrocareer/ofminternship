@@ -17,7 +17,8 @@ const DIMENSIONS: { key: string; label: string; get: (c: Candidate) => string }[
   { key: 'major', label: 'สาขาวิชา', get: (c) => String(c.major || '') },
   { key: 'university', label: 'มหาวิทยาลัย', get: (c) => String(c.university || '') },
   { key: 'region', label: 'ภูมิภาค', get: (c) => String(c.applicationForm?.region || '') },
-  { key: 'store', label: 'สาขาที่สะดวก', get: (c) => String(c.applicationForm?.preferBranch || '') },
+  { key: 'store', label: 'สาขาอันดับ 1', get: (c) => String(c.applicationForm?.preferBranch || '') },
+  { key: 'store2', label: 'สาขาอันดับ 2', get: (c) => String(c.applicationForm?.preferBranch2 || '') },
 ];
 
 // ปรับแต่งมุมมอง — เก็บใน localStorage
@@ -69,7 +70,8 @@ const CSV_COLS: CsvCol[] = [
   ['GPAX', (c) => c.gpa],
   ['วันเกิด', (c) => c.applicationForm?.birthDate || ''],
   ['ภูมิภาค', (c) => c.applicationForm?.region || ''],
-  ['สาขาที่สะดวก', (c) => c.applicationForm?.preferBranch || ''],
+  ['สาขาอันดับ 1', (c) => c.applicationForm?.preferBranch || ''],
+  ['สาขาอันดับ 2', (c) => c.applicationForm?.preferBranch2 || ''],
   ['การเดินทาง', (c) => ((c.applicationForm?.transport as string[]) || []).map((t) => TRANSPORT_TH[t] || t).join('; ')],
   ['เริ่มฝึกได้', (c) => c.applicationForm?.availableFrom || ''],
   ['ฝึกวันสุดท้าย', (c) => c.applicationForm?.availableTo || ''],
