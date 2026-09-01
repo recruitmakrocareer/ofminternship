@@ -16,7 +16,19 @@ const TRANSPORT = [
   { v: 'motorcycle', label: 'รถจักรยานยนต์' },
   { v: 'public_transport', label: 'รถสาธารณะ' },
 ];
-const REGIONS = ['กรุงเทพฯ และปริมณฑล', 'ภาคกลาง', 'ภาคตะวันออก', 'ภาคตะวันตก', 'ภาคเหนือ', 'ภาคตะวันออกเฉียงเหนือ', 'ภาคใต้', 'ทุกภูมิภาค'];
+// สาขาที่เปิดรับ 23 สาขา — เลือกได้เฉพาะรายการนี้เท่านั้น (ห้ามพิมพ์เอง)
+// ผู้สมัครเลือกได้ 1–2 อันดับ · ภูมิภาคคำนวณจากอันดับ 1 ให้อัตโนมัติ
+const STORE_GROUPS: { region: string; stores: string[] }[] = [
+  { region: 'กรุงเทพฯ และปริมณฑล', stores: ['ST1 ลาดพร้าว', 'ST3 ศรีนครินทร์', 'ST8 รังสิต', 'ST18 สาทร', 'ST19 นครปฐม', 'ST54 คลองหลวง'] },
+  { region: 'ภาคตะวันออก', stores: ['ST5 ชลบุรี', 'ST15 ระยอง', 'ST44 พัทยา', 'ST109 แหลมฉบัง'] },
+  { region: 'ภาคเหนือ', stores: ['ST6 เชียงใหม่ 1', 'ST11 พิษณุโลก', 'ST16 นครสวรรค์', 'ST23 เชียงราย', 'ST52 ลำปาง'] },
+  { region: 'ภาคตะวันออกเฉียงเหนือ', stores: ['ST7 นครราชสีมา', 'ST10 อุดรธานี', 'ST12 ขอนแก่น', 'ST14 อุบลราชธานี', 'ST48 หนองคาย'] },
+  { region: 'ภาคใต้', stores: ['ST9 หาดใหญ่', 'ST27 ภูเก็ต', 'ST43 ชุมพร'] },
+];
+const ANY_STORE = 'ปฏิบัติงานได้ทุกสาขา';
+const STORE_REGION: Record<string, string> = { [ANY_STORE]: 'ทุกภูมิภาค' };
+STORE_GROUPS.forEach((g) => g.stores.forEach((s) => { STORE_REGION[s] = g.region; }));
+const isStore = (v: string) => Object.prototype.hasOwnProperty.call(STORE_REGION, v);
 
 const NOW = new Date();
 const TODAY_ISO = NOW.toISOString().slice(0, 10);
@@ -60,8 +72,9 @@ interface FormData {
   activities: string;
   availableFrom: string;
   availableTo: string;
-  region: string;
-  preferBranch: string;
+  region: string; // คำนวณจาก preferBranch — ไม่ได้ถามผู้สมัครตรง ๆ
+  preferBranch: string; // สาขาอันดับ 1
+  preferBranch2: string; // สาขาอันดับ 2 (ไม่บังคับ)
   transport: string[];
   sources: string[];
 }
@@ -72,7 +85,7 @@ const EMPTY: FormData = {
   eduLevel: '', university: '', faculty: '', major: '', year: '', gpa: '', graduationYearBE: '',
   coordName: '', coordPhone: '', coordEmail: '',
   skills: [], skillUsage: '', activities: '',
-  availableFrom: '', availableTo: '', region: '', preferBranch: '', transport: [], sources: [],
+  availableFrom: '', availableTo: '', region: '', preferBranch: '', preferBranch2: '', transport: [], sources: [],
 };
 
 const ERR_MSG: Record<string, string> = {
@@ -101,7 +114,12 @@ export default function Apply() {
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(DRAFT_KEY) || '{}');
-      if (saved && typeof saved === 'object') setData((d) => ({ ...d, ...saved }));
+      if (saved && typeof saved === 'object') {
+        // draft เก่าเคยพิมพ์ชื่อสาขาเองได้ — ค่าที่ไม่อยู่ในลิสต์ 23 สาขาต้องล้างทิ้ง
+        if (!isStore(saved.preferBranch)) { saved.preferBranch = ''; saved.region = ''; }
+        if (!isStore(saved.preferBranch2)) saved.preferBranch2 = '';
+        setData((d) => ({ ...d, ...saved }));
+      }
     } catch {
       /* ignore */
     }
@@ -129,6 +147,26 @@ export default function Apply() {
     const arr = data[key];
     upd(key, (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]) as never);
   };
+
+  // เลือกสาขา — อันดับ 1 กำหนด region ให้เอง และล้างอันดับ 2 ถ้าซ้ำ/เลือกทุกสาขา
+  function setBranch(rank: 1 | 2, v: string) {
+    setData((d) => {
+      const next = { ...d };
+      if (rank === 1) {
+        next.preferBranch = v;
+        next.region = STORE_REGION[v] || '';
+        if (v === ANY_STORE || v === d.preferBranch2) next.preferBranch2 = '';
+      } else {
+        next.preferBranch2 = v;
+      }
+      try {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(next));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }
 
   function pickFile(setter: (f: File | null) => void) {
     return (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -182,7 +220,8 @@ export default function Apply() {
       if (req(f.availableFrom)) e.availableFrom = 'กรุณาเลือกวันที่เริ่มฝึกงาน';
       if (req(f.availableTo)) e.availableTo = 'กรุณาเลือกวันสุดท้าย';
       else if (f.availableFrom && f.availableTo <= f.availableFrom) e.availableTo = 'วันสุดท้ายต้องอยู่หลังวันเริ่มฝึกงาน';
-      if (req(f.region)) e.region = 'กรุณาเลือกภูมิภาคที่สะดวก';
+      if (!isStore(f.preferBranch)) e.preferBranch = 'กรุณาเลือกสาขาอันดับ 1';
+      else if (f.preferBranch2 && f.preferBranch2 === f.preferBranch) e.preferBranch2 = 'อันดับ 2 ต้องไม่ซ้ำกับอันดับ 1';
       if (!f.transport.length) e.transport = 'กรุณาเลือกวิธีเดินทางอย่างน้อย 1 ข้อ';
     }
     if (s === 5) {
@@ -474,16 +513,40 @@ export default function Apply() {
             <input type="date" className="fld" value={data.availableTo} onChange={onInput('availableTo')} min={data.availableFrom || TODAY_ISO} />
             <Err k="availableTo" />
             {durationWeeks > 0 && <p className="dur-note">ระยะเวลาฝึกงานโดยประมาณ {durationWeeks} สัปดาห์</p>}
-            <label className="lbl" style={{ marginTop: 16 }}>ภูมิภาคที่สะดวกปฏิบัติงาน <span className="req">*</span></label>
-            <select className="fld" value={data.region} onChange={onInput('region')}>
-              <option value="">เลือกภูมิภาค</option>
-              {REGIONS.map((r) => (
-                <option key={r} value={r}>{r}</option>
+            <label className="lbl" style={{ marginTop: 16 }}>สาขาที่สะดวกปฏิบัติงาน — อันดับ 1 <span className="req">*</span></label>
+            <select className="fld" value={data.preferBranch} onChange={(e) => setBranch(1, e.target.value)}>
+              <option value="">เลือกสาขา</option>
+              <option value={ANY_STORE}>{ANY_STORE}</option>
+              {STORE_GROUPS.map((g) => (
+                <optgroup key={g.region} label={`${g.region} — ${g.stores.length} สาขา`}>
+                  {g.stores.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </optgroup>
               ))}
             </select>
-            <Err k="region" />
-            <label className="lbl" style={{ marginTop: 16 }}>สาขา Makro ที่สะดวก (Store)</label>
-            <input className="fld" value={data.preferBranch} onChange={onInput('preferBranch')} placeholder="เช่น แม็คโคร สาขาลาดพร้าว" />
+            <Err k="preferBranch" />
+            {data.region && <p className="dur-note">ภูมิภาค: {data.region}</p>}
+
+            {data.preferBranch && data.preferBranch !== ANY_STORE && (
+              <>
+                <label className="lbl" style={{ marginTop: 16 }}>สาขาที่สะดวกปฏิบัติงาน — อันดับ 2 (ถ้ามี)</label>
+                <select className="fld" value={data.preferBranch2} onChange={(e) => setBranch(2, e.target.value)}>
+                  <option value="">ไม่ระบุ</option>
+                  {STORE_GROUPS.map((g) => {
+                    const opts = g.stores.filter((s) => s !== data.preferBranch);
+                    return (
+                      <optgroup key={g.region} label={`${g.region} — ${opts.length} สาขา`}>
+                        {opts.map((s) => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </optgroup>
+                    );
+                  })}
+                </select>
+                <Err k="preferBranch2" />
+              </>
+            )}
             <label className="lbl" style={{ marginTop: 16 }}>ท่านสามารถเดินทางไปปฏิบัติงานด้วยวิธีใด (เลือกได้หลายข้อ) <span className="req">*</span></label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 6 }}>
               {TRANSPORT.map((t) => (

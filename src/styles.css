@@ -329,6 +329,22 @@ textarea.fld {
   cursor: pointer;
 }
 
+/* ลำดับความสะดวกของสาขา (หน้า Candidate Profile) */
+.rank-badge {
+  flex: 0 0 22px;
+  height: 22px;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  font: 800 12px 'Anuphan';
+  color: #fff;
+  background: linear-gradient(150deg, #e2231a, #b4160f);
+}
+.rank-badge.alt {
+  background: rgba(63, 197, 240, 0.18);
+  color: var(--cyan);
+}
+
 /* carousel สื่อบนมือถือ (<1040px) — คู่กับ .promo ของ desktop */
 .m-car {
   padding: 18px 16px 0;
