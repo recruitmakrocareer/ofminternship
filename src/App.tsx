@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
 import { HashRouter, Routes, Route, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useIsDesktop, useSlideshow } from './lib/slides';
 import Landing from './pages/Landing';
 import ProgramJourney from './pages/ProgramJourney';
 import Apply from './pages/Apply';
@@ -46,34 +46,23 @@ function TabBar() {
   );
 }
 
-const PROMO_SLIDES = [
-  `${import.meta.env.BASE_URL}poster.png`,
-  '',
-  '',
-  '',
-];
-const PROMO_PH = ['โปสเตอร์โครงการ', 'บรรยากาศการทำงานจริง', 'ทีม / สาขา Makro', 'กิจกรรมในโครงการ'];
-
 // Promo pane (โชว์เฉพาะ desktop ≥1040px) — carousel สื่อ + โลโก้ CPX
+// รูปมาจาก Google Sheet (ดู src/lib/slides.ts) และแชร์ slide array ชุดเดียวกับ carousel มือถือ
 function PromoPane() {
-  const [slide, setSlide] = useState(0);
-  useEffect(() => {
-    const t = setInterval(() => setSlide((i) => (i + 1) % PROMO_SLIDES.length), 2800);
-    return () => clearInterval(t);
-  }, []);
+  const { slides, index } = useSlideshow();
   return (
     <div className="promo">
       <div className="promo-card">
         <div className="promo-media">
-          {PROMO_SLIDES.map((src, i) => (
-            <div key={i} className={`car-slide ${i === slide ? 'on' : ''}`}>
-              {src ? <img src={src} alt="" /> : <div className="car-ph">{PROMO_PH[i]}</div>}
+          {slides.map((s, i) => (
+            <div key={i} className={`car-slide ${i === index ? 'on' : ''}`}>
+              {s.src ? <img src={s.src} alt="" /> : <div className="car-ph">{s.label}</div>}
             </div>
           ))}
         </div>
         <div className="car-dots" style={{ position: 'static', marginTop: 14 }}>
-          {PROMO_SLIDES.map((_, i) => (
-            <span key={i} className={`dot ${i === slide ? 'on' : ''}`} />
+          {slides.map((_, i) => (
+            <span key={i} className={`dot ${i === index ? 'on' : ''}`} />
           ))}
         </div>
       </div>
@@ -85,12 +74,14 @@ function PromoPane() {
 }
 
 // Layout ฝั่งผู้สมัคร — desktop สองฝั่ง (promo + frame) / มือถือเต็มจอ + bottom tab bar (ซ่อนบน Apply)
+// PromoPane mount เฉพาะ desktop — มือถือใช้ carousel ในหน้า Landing (ห้ามเรนเดอร์พร้อมกัน)
 function AppLayout() {
   const { pathname } = useLocation();
   const isApply = pathname === '/apply';
+  const isDesktop = useIsDesktop();
   return (
     <div className="wrap">
-      <PromoPane />
+      {isDesktop && <PromoPane />}
       <div className="frame">
         <div className={`app-body scroll ${isApply ? 'no-tabs' : ''}`}>
           <Outlet />

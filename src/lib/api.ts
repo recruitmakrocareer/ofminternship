@@ -24,6 +24,8 @@ export interface Program {
   closeDate: string;
   journeyVideoUrl?: string;
   lottieJsonUrl?: string;
+  // รูป slideshow จาก Programs คอลัมน์ L (URL เต็ม หรือชื่อไฟล์ใน public/)
+  slideImages?: string[];
 }
 
 export interface ApplyPayload {

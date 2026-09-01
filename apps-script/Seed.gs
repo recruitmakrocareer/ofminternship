@@ -25,6 +25,7 @@ function setupSheets() {
     Programs: [
       'programId', 'name', 'description', 'journeyStepsJson', 'eligibleFacultiesJson',
       'quota', 'openDate', 'closeDate', 'isActive', 'journeyVideoUrl', 'lottieJsonUrl',
+      'slideImagesJson',
     ],
   };
 
@@ -51,6 +52,6 @@ function seedProgram() {
     'โครงการฝึกงานสายปฏิบัติการกับ CP AXTRA (Makro) เรียนรู้งานจริงในธุรกิจค้าส่งค้าปลีก',
     JSON.stringify(journeySteps),
     JSON.stringify(['บริหารธุรกิจ', 'วิศวกรรมศาสตร์', 'โลจิสติกส์', 'วิทยาการคอมพิวเตอร์']),
-    20, '2026-01-01', '2026-12-31', true, '', '',
+    20, '2026-01-01', '2026-12-31', true, '', '', '',
   ]);
 }

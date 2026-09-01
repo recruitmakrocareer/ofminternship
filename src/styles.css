@@ -324,6 +324,28 @@ textarea.fld {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.35);
   transition: all 0.3s;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+/* carousel สื่อบนมือถือ (<1040px) — คู่กับ .promo ของ desktop */
+.m-car {
+  padding: 18px 16px 0;
+}
+.m-car-media {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  background: #0a1730;
+  border: 1px solid rgba(63, 197, 240, 0.24);
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 24px 50px -34px rgba(0, 0, 0, 0.8);
+}
+.m-car-media .car-slide img {
+  /* contain — โปสเตอร์มีตัวหนังสือ ไม่ควรถูก crop ถ้าอัตราส่วนไม่ใช่ 4:5 */
+  object-fit: contain;
 }
 .dot.on {
   width: 20px;
