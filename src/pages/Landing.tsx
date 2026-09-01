@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { useIsDesktop, useSlideshow } from '../lib/slides';
 
 const BRANCHES = [
   {
@@ -59,9 +60,38 @@ const PERIOD = [
 
 const BENEFITS = ['ประสบการณ์ทำงานจริง', 'พัฒนาทักษะในสายอาชีพ', 'เรียนรู้จากผู้เชี่ยวชาญ', 'โอกาสร่วมงานกับแม็คโคร'];
 
+// Carousel สื่อบนมือถือ (<1040px) — ใช้ slide array ชุดเดียวกับ PromoPane บน desktop
+// mount สลับกันกับ PromoPane ไม่ให้ซ้อนกัน (ดู AppLayout ใน src/App.tsx)
+function MobileCarousel() {
+  const { slides, index, setIndex } = useSlideshow();
+  return (
+    <div className="m-car">
+      <div className="m-car-media">
+        {slides.map((s, i) => (
+          <div key={i} className={`car-slide ${i === index ? 'on' : ''}`}>
+            {s.src ? <img src={s.src} alt="" /> : <div className="car-ph">{s.label}</div>}
+          </div>
+        ))}
+        <div className="car-dots">
+          {slides.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              aria-label={`สไลด์ ${i + 1}`}
+              className={`dot ${i === index ? 'on' : ''}`}
+              onClick={() => setIndex(i)}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Landing() {
   const nav = useNavigate();
   const logo = `${import.meta.env.BASE_URL}cpx-logo.jpg`;
+  const isDesktop = useIsDesktop();
 
   return (
     <div>
@@ -88,6 +118,8 @@ export default function Landing() {
           INTERNSHIP PROGRAM
         </div>
       </div>
+
+      {!isDesktop && <MobileCarousel />}
 
       {/* program info */}
       <div style={{ padding: '24px 20px 4px' }}>

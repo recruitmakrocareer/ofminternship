@@ -47,6 +47,9 @@ function listPrograms() {
       closeDate: r[7],
       journeyVideoUrl: r[9],
       lottieJsonUrl: r[10],
+      // คอลัมน์ L — JSON array ของ URL รูป slideshow (ใส่ URL เต็ม หรือชื่อไฟล์ใน public/)
+      // ปล่อยว่างได้ frontend จะใช้รูป default
+      slideImages: safeParse(r[11], []),
     }));
 }
 
