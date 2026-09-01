@@ -32,6 +32,9 @@ Project memory / decisions for Claude Code. Read before making changes.
   cards. One slide array, one timer: `PromoPane` (desktop ≥1040px) and
   `MobileCarousel` (in Landing) are mounted exclusively by `useIsDesktop()`.
 - Slide art spec: 1080 × 1350 (4:5), JPG q80 or WebP, ≤300–500 KB, sRGB.
+- Journey video: `LOCAL_VIDEO_URL` in `src/pages/ProgramJourney.tsx`; `Programs`
+  col J (`journeyVideoUrl`) overrides it. Must be Public or Unlisted on
+  YouTube — Private videos cannot be embedded.
 - Backend `.gs` changes require the user to re-paste in the Apps Script editor
   and Deploy a new version (no clasp in use).
 
