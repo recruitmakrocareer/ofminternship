@@ -2,13 +2,20 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchPrograms } from '../lib/api';
 
+// วิดีโอแนะนำโครงการ — เปลี่ยนคลิปได้ 2 ทาง (เหมือนรูป slideshow)
+//   [ทางหลัก] แก้ลิงก์บรรทัดล่างนี้ แล้ว push
+//   [ทางเสริม] วางลิงก์ที่ Programs คอลัมน์ J (journeyVideoUrl) ในชีต → override ทับ
+const LOCAL_VIDEO_URL = 'https://www.youtube.com/watch?v=PvK8rrXyDVY';
+
 function toYouTubeEmbed(url: string): string {
   try {
     const u = new URL(url);
-    if (u.hostname.includes('youtu.be')) return `https://www.youtube.com/embed${u.pathname}`;
-    const v = u.searchParams.get('v');
-    if (v) return `https://www.youtube.com/embed/${v}`;
-    return url;
+    // ?v=, youtu.be/ID, /shorts/ID, /live/ID → /embed/ID
+    const id = u.searchParams.get('v') || u.pathname.split('/').filter(Boolean).pop();
+    if (!u.hostname.includes('youtu')) return url;
+    if (!id) return url;
+    // rel=0 กันคลิปแนะนำของช่องอื่นขึ้นตอนจบ · modestbranding ลดโลโก้ YouTube
+    return `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1`;
   } catch {
     return url;
   }
@@ -22,7 +29,7 @@ const STEPS = [
 
 export default function ProgramJourney() {
   const nav = useNavigate();
-  const [videoUrl, setVideoUrl] = useState('');
+  const [videoUrl, setVideoUrl] = useState(toYouTubeEmbed(LOCAL_VIDEO_URL));
 
   useEffect(() => {
     fetchPrograms().then((r) => {

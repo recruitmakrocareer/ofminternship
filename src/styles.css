@@ -471,7 +471,7 @@ textarea.fld {
   margin: 0 20px 20px;
   border-radius: 20px;
   overflow: hidden;
-  height: 200px;
+  aspect-ratio: 16 / 9; /* ตรงกับสัดส่วน YouTube — ไม่มีขอบดำ */
   background: var(--panel-row);
   border: 1px solid rgba(63, 197, 240, 0.25);
   position: relative;
