@@ -35,7 +35,11 @@ Project memory / decisions for Claude Code. Read before making changes.
   swapped without a deploy. Never render a slot with no image — no placeholder
   cards. One slide array, one timer: `PromoPane` (desktop ≥1040px) and
   `MobileCarousel` (in Landing) are mounted exclusively by `useIsDesktop()`.
-- Slide art spec: 1080 × 1350 (4:5), JPG q80 or WebP, ≤300–500 KB, sRGB.
+- Slide art spec: 2:3 portrait (current poster is 1024 × 1536). The carousel
+  slots are `aspect-ratio: 2/3` with `object-fit: contain`, so off-ratio art
+  still shows in full, just letterboxed. Target ≤300–500 KB, JPG q80 or WebP.
+- Contact details on Landing (phone/email) come from the poster — keep them in
+  sync with it. The social links are labels only; no URLs supplied yet.
 - Journey video: `LOCAL_VIDEO_URL` in `src/pages/ProgramJourney.tsx`; `Programs`
   col J (`journeyVideoUrl`) overrides it. Must be Public or Unlisted on
   YouTube — Private videos cannot be embedded.

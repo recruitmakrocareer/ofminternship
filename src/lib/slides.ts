@@ -16,7 +16,7 @@ import { fetchPrograms } from './api';
 // ---------------------------------------------------------------------------
 
 /** รูปที่ฝังมากับเว็บ (ไฟล์ต้องอยู่ใน public/) — เพิ่ม/ลด/สลับลำดับได้ที่บรรทัดนี้ */
-const LOCAL_SLIDES = ['poster.png'];
+const LOCAL_SLIDES = ['Poster2.png'];
 
 /** ต่อ path ให้ถูกต้อง — URL เต็มใช้ตามนั้น, ชื่อไฟล์เฉย ๆ ถือว่าอยู่ใน public/ */
 function resolve(v: string): string {
