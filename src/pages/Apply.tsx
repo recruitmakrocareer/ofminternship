@@ -75,6 +75,7 @@ interface FormData {
   region: string; // คำนวณจาก preferBranch — ไม่ได้ถามผู้สมัครตรง ๆ
   preferBranch: string; // สาขาอันดับ 1
   preferBranch2: string; // สาขาอันดับ 2 (ไม่บังคับ)
+  preferBranch3: string; // สาขาอันดับ 3 (ไม่บังคับ)
   transport: string[];
   sources: string[];
 }
@@ -85,7 +86,8 @@ const EMPTY: FormData = {
   eduLevel: '', university: '', faculty: '', major: '', year: '', gpa: '', graduationYearBE: '',
   coordName: '', coordPhone: '', coordEmail: '',
   skills: [], skillUsage: '', activities: '',
-  availableFrom: '', availableTo: '', region: '', preferBranch: '', preferBranch2: '', transport: [], sources: [],
+  availableFrom: '', availableTo: '', region: '', preferBranch: '', preferBranch2: '', preferBranch3: '',
+  transport: [], sources: [],
 };
 
 const ERR_MSG: Record<string, string> = {
@@ -118,6 +120,7 @@ export default function Apply() {
         // draft เก่าเคยพิมพ์ชื่อสาขาเองได้ — ค่าที่ไม่อยู่ในลิสต์ 23 สาขาต้องล้างทิ้ง
         if (!isStore(saved.preferBranch)) { saved.preferBranch = ''; saved.region = ''; }
         if (!isStore(saved.preferBranch2)) saved.preferBranch2 = '';
+        if (!isStore(saved.preferBranch3)) saved.preferBranch3 = '';
         setData((d) => ({ ...d, ...saved }));
       }
     } catch {
@@ -148,16 +151,27 @@ export default function Apply() {
     upd(key, (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]) as never);
   };
 
-  // เลือกสาขา — อันดับ 1 กำหนด region ให้เอง และล้างอันดับ 2 ถ้าซ้ำ/เลือกทุกสาขา
-  function setBranch(rank: 1 | 2, v: string) {
+  // เลือกสาขาได้สูงสุด 3 อันดับ (ตามโปสเตอร์)
+  // อันดับ 1 กำหนด region ให้เอง · เลือกซ้ำ/เลือกทุกสาขา → ล้างอันดับที่ต่ำกว่า
+  function setBranch(rank: 1 | 2 | 3, v: string) {
     setData((d) => {
       const next = { ...d };
       if (rank === 1) {
         next.preferBranch = v;
         next.region = STORE_REGION[v] || '';
-        if (v === ANY_STORE || v === d.preferBranch2) next.preferBranch2 = '';
-      } else {
+        if (!v || v === ANY_STORE) {
+          next.preferBranch2 = '';
+          next.preferBranch3 = '';
+        } else {
+          if (next.preferBranch2 === v) next.preferBranch2 = '';
+          if (next.preferBranch3 === v) next.preferBranch3 = '';
+          if (!next.preferBranch2) next.preferBranch3 = ''; // ห้ามมีอันดับ 3 โดยไม่มีอันดับ 2
+        }
+      } else if (rank === 2) {
         next.preferBranch2 = v;
+        if (!v || next.preferBranch3 === v) next.preferBranch3 = '';
+      } else {
+        next.preferBranch3 = v;
       }
       try {
         localStorage.setItem(DRAFT_KEY, JSON.stringify(next));
@@ -221,7 +235,10 @@ export default function Apply() {
       if (req(f.availableTo)) e.availableTo = 'กรุณาเลือกวันสุดท้าย';
       else if (f.availableFrom && f.availableTo <= f.availableFrom) e.availableTo = 'วันสุดท้ายต้องอยู่หลังวันเริ่มฝึกงาน';
       if (!isStore(f.preferBranch)) e.preferBranch = 'กรุณาเลือกสาขาอันดับ 1';
-      else if (f.preferBranch2 && f.preferBranch2 === f.preferBranch) e.preferBranch2 = 'อันดับ 2 ต้องไม่ซ้ำกับอันดับ 1';
+      else {
+        if (f.preferBranch2 && f.preferBranch2 === f.preferBranch) e.preferBranch2 = 'อันดับ 2 ต้องไม่ซ้ำกับอันดับ 1';
+        if (f.preferBranch3 && (f.preferBranch3 === f.preferBranch || f.preferBranch3 === f.preferBranch2)) e.preferBranch3 = 'อันดับ 3 ต้องไม่ซ้ำกับอันดับก่อนหน้า';
+      }
       if (!f.transport.length) e.transport = 'กรุณาเลือกวิธีเดินทางอย่างน้อย 1 ข้อ';
     }
     if (s === 5) {
@@ -238,6 +255,32 @@ export default function Apply() {
 
   const errs = attempted ? stepErrors(step) : {};
   const Err = ({ k }: { k: string }) => (errs[k] ? <p className="field-err">{errs[k]}</p> : null);
+
+  // select สาขาอันดับ 2/3 — ตัดสาขาที่เลือกในอันดับก่อนหน้าออก กันเลือกซ้ำ
+  function rankSelect(rank: 2 | 3) {
+    const key = rank === 2 ? 'preferBranch2' : 'preferBranch3';
+    const taken = rank === 2 ? [data.preferBranch] : [data.preferBranch, data.preferBranch2];
+    return (
+      <div key={rank}>
+        <label className="lbl" style={{ marginTop: 16 }}>สาขาที่สะดวกปฏิบัติงาน — อันดับ {rank} (ถ้ามี)</label>
+        <select className="fld" value={data[key]} onChange={(e) => setBranch(rank, e.target.value)}>
+          <option value="">ไม่ระบุ</option>
+          {STORE_GROUPS.map((g) => {
+            const opts = g.stores.filter((s) => !taken.includes(s));
+            if (!opts.length) return null;
+            return (
+              <optgroup key={g.region} label={`${g.region} — ${opts.length} สาขา`}>
+                {opts.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </optgroup>
+            );
+          })}
+        </select>
+        <Err k={key} />
+      </div>
+    );
+  }
 
   function next() {
     setError('');
@@ -528,25 +571,12 @@ export default function Apply() {
             <Err k="preferBranch" />
             {data.region && <p className="dur-note">ภูมิภาค: {data.region}</p>}
 
-            {data.preferBranch && data.preferBranch !== ANY_STORE && (
-              <>
-                <label className="lbl" style={{ marginTop: 16 }}>สาขาที่สะดวกปฏิบัติงาน — อันดับ 2 (ถ้ามี)</label>
-                <select className="fld" value={data.preferBranch2} onChange={(e) => setBranch(2, e.target.value)}>
-                  <option value="">ไม่ระบุ</option>
-                  {STORE_GROUPS.map((g) => {
-                    const opts = g.stores.filter((s) => s !== data.preferBranch);
-                    return (
-                      <optgroup key={g.region} label={`${g.region} — ${opts.length} สาขา`}>
-                        {opts.map((s) => (
-                          <option key={s} value={s}>{s}</option>
-                        ))}
-                      </optgroup>
-                    );
-                  })}
-                </select>
-                <Err k="preferBranch2" />
-              </>
-            )}
+            {/* อันดับ 2 และ 3 — โผล่ตามลำดับ และตัดสาขาที่เลือกไปแล้วออกจากตัวเลือก */}
+            {data.preferBranch && data.preferBranch !== ANY_STORE && rankSelect(2)}
+            {data.preferBranch2 && rankSelect(3)}
+            <p className="hint-note">
+              เลือกได้สูงสุด 3 อันดับ · การจัดสรรขึ้นอยู่กับผลการคัดเลือกและอัตรารองรับของแต่ละสาขา
+            </p>
             <label className="lbl" style={{ marginTop: 16 }}>ท่านสามารถเดินทางไปปฏิบัติงานด้วยวิธีใด (เลือกได้หลายข้อ) <span className="req">*</span></label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 6 }}>
               {TRANSPORT.map((t) => (

@@ -329,6 +329,14 @@ textarea.fld {
   cursor: pointer;
 }
 
+/* หมายเหตุใต้ฟิลด์ในฟอร์ม */
+.hint-note {
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--muted);
+  margin: 10px 0 0;
+}
+
 /* ลำดับความสะดวกของสาขา (หน้า Candidate Profile) */
 .rank-badge {
   flex: 0 0 22px;
