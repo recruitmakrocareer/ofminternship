@@ -83,7 +83,7 @@ a:hover {
 .promo-media {
   position: relative;
   width: 100%;
-  aspect-ratio: 4 / 5;
+  aspect-ratio: 2 / 3; /* ตรงกับโปสเตอร์ 1024×1536 */
   background: #0a1730;
   border-radius: 16px;
   overflow: hidden;
@@ -153,6 +153,10 @@ a:hover {
     max-width: 640px;
     height: 100vh;
     padding: 44px 48px;
+  }
+  /* จำกัดความกว้างการ์ดตามความสูงจอ — โปสเตอร์ 2:3 สูงมาก ถ้าไม่คุมจะล้นจอ */
+  .promo-card {
+    max-width: calc((100vh - 230px) * 2 / 3);
   }
 }
 .app-topbar {
@@ -329,6 +333,49 @@ textarea.fld {
   cursor: pointer;
 }
 
+/* ===================== CONTACT (หน้าแรก) ===================== */
+.contact-card {
+  background: linear-gradient(150deg, #12306a, #0b1e47);
+  border: 1px solid rgba(63, 197, 240, 0.3);
+  border-radius: 18px;
+  padding: 6px 8px;
+}
+.contact-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px;
+  border-radius: 12px;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+a.contact-row:hover {
+  background: rgba(63, 197, 240, 0.08);
+}
+.contact-ico {
+  flex: 0 0 38px;
+  height: 38px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+}
+.contact-row .l {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.contact-row .v {
+  font: 700 14.5px 'Anuphan';
+  color: #fff;
+  word-break: break-word;
+}
+.tagline {
+  text-align: center;
+  font: 800 13px 'Anuphan';
+  letter-spacing: 0.5px;
+  color: var(--gold);
+  margin: 16px 0 0;
+}
+
 /* หมายเหตุใต้ฟิลด์ในฟอร์ม */
 .hint-note {
   font-size: 11.5px;
@@ -360,7 +407,7 @@ textarea.fld {
 .m-car-media {
   position: relative;
   width: 100%;
-  aspect-ratio: 4 / 5;
+  aspect-ratio: 2 / 3; /* ตรงกับโปสเตอร์ 1024×1536 */
   background: #0a1730;
   border: 1px solid rgba(63, 197, 240, 0.24);
   border-radius: 20px;
