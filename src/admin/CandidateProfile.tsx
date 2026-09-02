@@ -199,16 +199,18 @@ export default function CandidateProfile() {
           <div className="pcard">
             <div style={{ font: "700 15px 'Anuphan'", color: '#fff', marginBottom: 12 }}>สาขาที่สะดวกปฏิบัติงาน</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span className="rank-badge">1</span>
-                <span style={{ fontSize: 13.5, color: '#EAF0FF' }}>{form.preferBranch || '—'}</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span className="rank-badge alt">2</span>
-                <span style={{ fontSize: 13.5, color: form.preferBranch2 ? '#EAF0FF' : '#5A6890' }}>
-                  {form.preferBranch2 || 'ไม่ระบุ'}
-                </span>
-              </div>
+              {([
+                [1, form.preferBranch],
+                [2, form.preferBranch2],
+                [3, form.preferBranch3],
+              ] as [number, string | undefined][]).map(([n, store]) => (
+                <div key={n} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span className={`rank-badge ${n === 1 ? '' : 'alt'}`}>{n}</span>
+                  <span style={{ fontSize: 13.5, color: store ? '#EAF0FF' : '#5A6890' }}>
+                    {store || 'ไม่ระบุ'}
+                  </span>
+                </div>
+              ))}
             </div>
             {form.region && <p style={{ fontSize: 12, color: '#7E8DB0', margin: '12px 0 0' }}>ภูมิภาค: {form.region}</p>}
           </div>

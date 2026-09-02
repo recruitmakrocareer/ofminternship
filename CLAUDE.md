@@ -18,6 +18,10 @@ Project memory / decisions for Claude Code. Read before making changes.
 - Apply form = the design-handoff short/friendly 8-step wizard (v3), not the
   earlier 49-question official form. New fields are stored in the
   `applicationFormJson` blob (Candidates col AE) — core columns unchanged.
+- Store choice = the fixed 23-store list in `STORE_GROUPS` (`src/pages/Apply.tsx`),
+  plus "ปฏิบัติงานได้ทุกสาขา". Applicants rank up to **3** stores (poster promise);
+  `region` is derived from rank 1, never asked. Campaign dates live in `PERIOD`
+  (`src/pages/Landing.tsx`) and must match the poster.
 - Zero-cost pilot stack (Apps Script + Sheets). No DB migration unless asked.
 
 ## Conventions

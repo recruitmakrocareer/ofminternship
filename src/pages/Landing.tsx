@@ -52,10 +52,11 @@ const ROUNDS = [
   { n: 2, title: 'มิ.ย. 70 – ต.ค. 70', sub: 'ระยะฝึก 16+ สัปดาห์' },
 ];
 
+// ตรงกับ RECRUITMENT TIMELINE บนโปสเตอร์
 const PERIOD = [
-  { title: 'ปิดรับสมัคร', date: '20 สิงหาคม 2569', bg: 'rgba(226,35,26,.15)', stroke: '#FF5A50', gold: false, icon: <><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" /></> },
-  { title: 'สัมภาษณ์', date: '21 สิงหาคม 2569', bg: 'rgba(63,197,240,.15)', stroke: '#3FC5F0', gold: false, icon: <><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /></> },
-  { title: 'เริ่มฝึกงาน', date: 'ตุลาคม 2569 เป็นต้นไป', bg: 'rgba(255,196,46,.15)', stroke: '#FFC42E', gold: true, icon: <><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></> },
+  { title: 'เปิดรับสมัคร', date: '3–10 กันยายน 2569', bg: 'rgba(226,35,26,.15)', stroke: '#FF5A50', gold: false, icon: <><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" /></> },
+  { title: 'สัมภาษณ์', date: '14–18 กันยายน 2569', bg: 'rgba(63,197,240,.15)', stroke: '#3FC5F0', gold: false, icon: <><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /></> },
+  { title: 'ประกาศผล', date: '22 กันยายน 2569', bg: 'rgba(255,196,46,.15)', stroke: '#FFC42E', gold: true, icon: <><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></> },
 ];
 
 const BENEFITS = ['ประสบการณ์ทำงานจริง', 'พัฒนาทักษะในสายอาชีพ', 'เรียนรู้จากผู้เชี่ยวชาญ', 'โอกาสร่วมงานกับแม็คโคร'];
@@ -165,6 +166,9 @@ export default function Landing() {
               </div>
             </div>
           ))}
+          <p style={{ fontSize: 11.5, color: '#7E8DB0', margin: '2px 0 0' }}>
+            * ติดต่อกลับเฉพาะผู้สมัครที่ผ่านการคัดเลือกเท่านั้น
+          </p>
         </div>
       </div>
 
@@ -175,12 +179,8 @@ export default function Landing() {
           <div className="t">สัปดาห์ฝึก</div>
         </div>
         <div className="stat-box">
-          <div className="n sm">
-            ปฏิบัติงาน
-            <br />
-            ที่สาขา
-          </div>
-          <div className="t">แม็คโคร</div>
+          <div className="n">23</div>
+          <div className="t">สาขาทั่วประเทศ</div>
         </div>
         <div className="stat-box">
           <div className="n cy">30</div>
