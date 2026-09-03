@@ -143,14 +143,56 @@ export const ALL_STATUSES = [
 // API calls
 // ---------------------------------------------------------------------------
 
+// Apps Script /exec จะ 302 ไป script.googleusercontent.com/macros/echo เสมอ
+// ถ้าปลายทางตอบ 404/5xx (deployment ถูกแทนที่ / "Who has access" ไม่ใช่ Anyone /
+// payload ใหญ่เกิน limit / โควตาหมด) เราจะได้ HTML กลับมาแทน JSON แล้ว res.json()
+// จะ throw "Unexpected token '<'" ทำให้หน้าจอว่างเปล่าและ debug ยาก
+// -> อ่านเป็น text ก่อนแล้วค่อย parse เพื่อคืน error ที่สื่อความหมาย
+async function readJson(res: Response): Promise<any> {
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { ok: false, error: res.ok ? 'backend_bad_response' : `backend_http_${res.status}` };
+  }
+}
+
+async function getJson(query: string): Promise<any> {
+  try {
+    return await readJson(await fetch(APPS_SCRIPT_URL + query));
+  } catch {
+    return { ok: false, error: 'network' };
+  }
+}
+
 // ใช้ Content-Type: text/plain เพื่อเลี่ยง CORS preflight ของ Apps Script (gotcha สำคัญ ข้อ 3)
 async function postAction(payload: unknown): Promise<any> {
-  const res = await fetch(APPS_SCRIPT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(payload),
-  });
-  return res.json();
+  try {
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload),
+    });
+    return await readJson(res);
+  } catch {
+    return { ok: false, error: 'network' };
+  }
+}
+
+/** แปลงรหัส error เป็นข้อความภาษาไทยสำหรับแสดงในหน้า admin */
+export function apiErrorMessage(error?: string): string {
+  if (!error) return 'เกิดข้อผิดพลาดไม่ทราบสาเหตุ';
+  if (error === 'unauthorized') return 'Admin token ไม่ถูกต้อง';
+  if (error === 'not_found') return 'ไม่พบข้อมูล';
+  if (error === 'network') return 'เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ — ตรวจสอบอินเทอร์เน็ต';
+  if (error.startsWith('backend_http_'))
+    return (
+      `เซิร์ฟเวอร์ตอบกลับผิดพลาด (HTTP ${error.replace('backend_http_', '')}) — ` +
+      'ตรวจสอบว่า Apps Script ยัง Deploy อยู่ และตั้ง Who has access = Anyone'
+    );
+  if (error === 'backend_bad_response')
+    return 'เซิร์ฟเวอร์ตอบกลับไม่ใช่ JSON — มักเกิดจาก deployment ถูกแทนที่ หรือข้อมูลตอบกลับใหญ่เกินไป';
+  return error;
 }
 
 export async function submitApplication(payload: ApplyPayload) {
@@ -158,44 +200,45 @@ export async function submitApplication(payload: ApplyPayload) {
 }
 
 export async function fetchPrograms(): Promise<{ ok: boolean; programs?: Program[]; error?: string }> {
-  const res = await fetch(APPS_SCRIPT_URL + '?action=programs');
-  return res.json();
+  return getJson('?action=programs');
 }
 
 export async function trackStatus(trackingCode: string, email: string) {
-  const url =
-    APPS_SCRIPT_URL +
+  return getJson(
     '?action=track&trackingCode=' +
-    encodeURIComponent(trackingCode) +
-    '&email=' +
-    encodeURIComponent(email);
-  const res = await fetch(url);
-  return res.json();
+      encodeURIComponent(trackingCode) +
+      '&email=' +
+      encodeURIComponent(email),
+  );
 }
 
 // --- admin (ADMIN_TOKEN ผู้ใช้กรอกในหน้า admin, เก็บใน localStorage เท่านั้น ไม่ commit) ---
 
+/**
+ * adminListCandidates — รายชื่อผู้สมัครทั้งหมด
+ * lite = true คืนเฉพาะ candidateId + สถานะ (ใช้ทำปุ่มก่อนหน้า/ถัดไป) — response เล็กกว่ามาก
+ * เพราะไม่ดึง applicationFormJson ของทุกคนมาด้วย (backend เก่าที่ยังไม่รู้จัก lite
+ * จะคืนรายการเต็มตามเดิม ซึ่งยังใช้งานได้ปกติ)
+ */
 export async function adminListCandidates(
   adminToken: string,
+  opts: { lite?: boolean } = {},
 ): Promise<{ ok: boolean; count?: number; candidates?: Candidate[]; error?: string }> {
-  const res = await fetch(
-    APPS_SCRIPT_URL + '?action=list&adminToken=' + encodeURIComponent(adminToken),
+  return getJson(
+    '?action=list&adminToken=' + encodeURIComponent(adminToken) + (opts.lite ? '&lite=1' : ''),
   );
-  return res.json();
 }
 
 export async function adminGetCandidate(
   adminToken: string,
   candidateId: string,
 ): Promise<{ ok: boolean; candidate?: Candidate; applications?: Application[]; error?: string }> {
-  const res = await fetch(
-    APPS_SCRIPT_URL +
-      '?action=candidate&adminToken=' +
+  return getJson(
+    '?action=candidate&adminToken=' +
       encodeURIComponent(adminToken) +
       '&candidateId=' +
       encodeURIComponent(candidateId),
   );
-  return res.json();
 }
 
 export async function adminUpdateStatus(
@@ -222,12 +265,10 @@ export async function adminGetPhoto(
   adminToken: string,
   candidateId: string,
 ): Promise<{ ok: boolean; mimeType?: string; dataBase64?: string; error?: string }> {
-  const res = await fetch(
-    APPS_SCRIPT_URL +
-      '?action=photo&adminToken=' +
+  return getJson(
+    '?action=photo&adminToken=' +
       encodeURIComponent(adminToken) +
       '&candidateId=' +
       encodeURIComponent(candidateId),
   );
-  return res.json();
 }

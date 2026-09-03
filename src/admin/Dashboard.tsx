@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { adminListCandidates, type Candidate } from '../lib/api';
+import { adminListCandidates, apiErrorMessage, type Candidate } from '../lib/api';
 import { badgeStyle, statusLabel } from '../lib/status';
 import AdminSidebar from './AdminSidebar';
 
@@ -149,9 +149,9 @@ export default function Dashboard() {
     adminListCandidates(tk)
       .then((r) => {
         if (r.ok && r.candidates) setCandidates(r.candidates);
-        else setError(r.error === 'unauthorized' ? 'Admin token ไม่ถูกต้อง' : r.error || 'error');
+        else setError(apiErrorMessage(r.error));
       })
-      .catch(() => setError('เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ'))
+      .catch(() => setError(apiErrorMessage('network')))
       .finally(() => setLoading(false));
   }
 
